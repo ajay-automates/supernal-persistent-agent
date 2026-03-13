@@ -5,7 +5,6 @@ Real-time voice & text agent with persistent multi-user memory
 
 import os
 import io
-from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,9 +15,9 @@ from openai import OpenAI
 from config import OPENAI_API_KEY
 from agent import answer_question
 from db import (
-    save_document, save_chunk, get_user_documents, 
+    save_document, save_chunk, get_user_documents,
     get_user_stats, clear_user_memory, clear_user_documents,
-    get_user_memory
+    get_user_memory, get_or_create_user
 )
 
 # Initialize FastAPI
@@ -68,7 +67,10 @@ async def upload_text(user_id: str = Form(...), text: str = Form(...)):
     try:
         if not text.strip():
             raise HTTPException(status_code=400, detail="Empty text")
-        
+
+        # Ensure user exists (required for FK constraint)
+        get_or_create_user(user_id)
+
         # Save document metadata
         doc_id = save_document(user_id, "pasted_text", "User Pasted Text")
         
@@ -103,7 +105,10 @@ async def upload_file(user_id: str = Form(...), file: UploadFile = File(...)):
     try:
         if not file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
-        
+
+        # Ensure user exists (required for FK constraint)
+        get_or_create_user(user_id)
+
         contents = await file.read()
         
         # Handle PDF

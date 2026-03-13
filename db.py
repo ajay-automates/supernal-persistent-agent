@@ -6,7 +6,6 @@ Manages: users, conversations, documents, chunks, embeddings
 from config import supabase
 from datetime import datetime
 from typing import List, Dict, Optional
-import json
 
 # ============================================================
 # USER MANAGEMENT

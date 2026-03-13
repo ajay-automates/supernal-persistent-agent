@@ -70,6 +70,9 @@ pip install -r requirements.txt
 **Run these SQL commands in Supabase SQL Editor:**
 
 ```sql
+-- Enable pgvector extension (required for VECTOR type)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Users table
 CREATE TABLE users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

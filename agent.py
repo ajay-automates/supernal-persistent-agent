@@ -119,7 +119,7 @@ Question: {query}"""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            max_tokens=300,
+            max_tokens=800,
             temperature=0.3
         )
         
