@@ -1,15 +1,18 @@
 """
-Agent module - Core agentic RAG orchestrator
-Handles: retrieval, generation, memory management
+Agent module - 3-Tier RAG orchestrator
+Pipeline: retrieve org docs → load user+agent memory → generate → save
 """
 
 from config import OPENAI_API_KEY, LANGSMITH_API_KEY
-from db import get_or_create_user, save_message, get_user_memory, search_user_chunks
+from db import (
+    get_or_create_user, save_message,
+    get_user_ai_employee_memory, search_organization_chunks,
+    get_organization, get_ai_employee
+)
 from openai import OpenAI
 from typing import List, Dict, Tuple
 import os
 
-# Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Optional LangSmith tracing
@@ -17,7 +20,6 @@ if LANGSMITH_API_KEY:
     from langsmith import traceable
 else:
     def traceable(name=None, run_type=None):
-        """No-op decorator if LangSmith not available"""
         def decorator(func):
             return func
         return decorator
@@ -28,37 +30,35 @@ else:
 # ============================================================
 
 @traceable(name="retrieve_context", run_type="retriever")
-def retrieve_context(user_id: str, query: str, k: int = 4) -> Tuple[str, List[Dict]]:
+def retrieve_context(
+    organization_id: str, query: str, k: int = 4
+) -> Tuple[str, List[str]]:
     """
-    Retrieve relevant context from user's documents
-    Returns: (context_string, list_of_sources)
+    Retrieve relevant context from the organization's shared documents.
+    Returns (context_string, sources_list).
     """
     try:
-        # Get query embedding
         embedding_response = client.embeddings.create(
             model="text-embedding-3-small",
             input=query
         )
         query_embedding = embedding_response.data[0].embedding
-        
-        # Search user's chunks
-        results = search_user_chunks(user_id, query_embedding, k=k)
-        
+
+        results = search_organization_chunks(organization_id, query_embedding, k=k)
+
         if not results:
-            return "No relevant documents found.", []
-        
-        # Format context
+            return "No relevant documents found in the organization knowledge base.", []
+
         context_parts = []
         sources = []
-        
         for result in results:
-            context_parts.append(f"[Source: {result.get('source', 'Unknown')}]\n{result.get('text', '')}")
-            if result.get('source') not in sources:
-                sources.append(result.get('source'))
-        
-        context = "\n\n---\n\n".join(context_parts)
-        return context, sources
-    
+            src = result.get("source", "Unknown")
+            context_parts.append(f"[Source: {src}]\n{result.get('text', '')}")
+            if src not in sources:
+                sources.append(src)
+
+        return "\n\n---\n\n".join(context_parts), sources
+
     except Exception as e:
         print(f"Error in retrieve_context: {e}")
         return f"Error retrieving context: {str(e)}", []
@@ -70,7 +70,11 @@ def retrieve_context(user_id: str, query: str, k: int = 4) -> Tuple[str, List[Di
 
 @traceable(name="generate_answer", run_type="chain")
 def generate_answer(
-    user_id: str,
+    org_name: str,
+    ai_employee_name: str,
+    ai_employee_role: str,
+    job_description: str,
+    user_name: str,
     query: str,
     context: str,
     sources: List[str],
@@ -78,33 +82,33 @@ def generate_answer(
 ) -> str:
     """
     Generate answer using:
-    - Current query
-    - Retrieved context from documents
-    - User's past conversations (memory)
+    - Organization context (name, shared docs)
+    - AI employee persona (name, role, job description)
+    - User's past conversations with this specific agent
     """
     try:
-        # Build system prompt
-        system_prompt = """You are a helpful AI assistant with persistent memory of past conversations.
-When answering questions:
-1. Use the provided context from documents as the primary source
-2. Reference relevant past conversations when helpful
-3. Be concise and direct
-4. If you don't know something, say so clearly
-5. Always be honest about what you do and don't know from the provided context"""
-        
-        # Build messages
+        system_prompt = f"""You are {ai_employee_name}, an AI employee at {org_name}.
+Your role: {ai_employee_role}
+Your responsibilities: {job_description or 'Help users with their questions.'}
+
+When answering:
+1. Stay in character as {ai_employee_name} — a knowledgeable {ai_employee_role} at {org_name}
+2. Use the provided organization documents as your primary knowledge source
+3. Reference the user's past conversations with you when relevant
+4. Be concise, helpful, and professional
+5. Address the user{f" ({user_name})" if user_name else ""} directly
+6. If you don't know something from the provided context, say so clearly"""
+
         messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add relevant past conversations (last 6 turns = 12 messages)
+
+        # Last 12 messages (6 turns) from this user's history with this agent
         for msg in memory[-12:]:
             messages.append({
                 "role": msg.get("role", "user"),
                 "content": msg.get("content", "")
             })
-        
-        # Add current query with context
-        context_prompt = f"""
-Retrieved Document Context:
+
+        context_prompt = f"""Organization Knowledge Base:
 ---
 {context}
 ---
@@ -112,20 +116,17 @@ Retrieved Document Context:
 Sources: {', '.join(sources) if sources else 'None'}
 
 Question: {query}"""
-        
+
         messages.append({"role": "user", "content": context_prompt})
-        
-        # Generate response
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             max_tokens=800,
             temperature=0.3
         )
-        
-        answer = response.choices[0].message.content.strip()
-        return answer
-    
+        return response.choices[0].message.content.strip()
+
     except Exception as e:
         print(f"Error in generate_answer: {e}")
         return f"Error generating answer: {str(e)}"
@@ -136,16 +137,24 @@ Question: {query}"""
 # ============================================================
 
 @traceable(name="agent_pipeline", run_type="chain")
-def answer_question(user_id: str, question: str) -> Dict:
+def answer_question(
+    organization_id: str,
+    ai_employee_id: str,
+    user_id: str,
+    question: str
+) -> Dict:
     """
-    Main agent pipeline:
-    1. Ensure user exists
-    2. Retrieve relevant context
-    3. Get user's past memory
-    4. Generate answer using all context
-    5. Save to memory
+    3-tier agent pipeline:
+    1. Ensure user exists in the org
+    2. Fetch org / AI employee metadata for persona
+    3. Retrieve relevant org-level documents
+    4. Load user's past conversations with THIS agent
+    5. Generate answer with full context
+    6. Persist to conversations table
     """
     result = {
+        "organization_id": organization_id,
+        "ai_employee_id": ai_employee_id,
         "user_id": user_id,
         "question": question,
         "answer": None,
@@ -153,49 +162,53 @@ def answer_question(user_id: str, question: str) -> Dict:
         "memory_used": False,
         "error": None
     }
-    
+
     try:
-        # Ensure user exists
-        user = get_or_create_user(user_id)
+        # Ensure user exists (create under this org if new)
+        user = get_or_create_user(organization_id, user_id)
         if not user:
             result["error"] = "Failed to create/retrieve user"
             return result
-        
-        # Retrieve context from documents
-        context, sources = retrieve_context(user_id, question, k=4)
+
+        # Load org + AI employee metadata for persona building
+        org = get_organization(organization_id) or {}
+        agent = get_ai_employee(ai_employee_id) or {}
+
+        org_name = org.get("name", "the organization")
+        ai_name = agent.get("name", "AI Assistant")
+        ai_role = agent.get("role", "Assistant")
+        job_desc = agent.get("job_description", "")
+        user_name = user.get("name", "")
+
+        # Retrieve relevant shared org docs
+        context, sources = retrieve_context(organization_id, question, k=4)
         result["sources"] = sources
-        
-        # Get user's past conversations (memory)
-        memory = get_user_memory(user_id, limit=20)
+
+        # Load memory: this user's conversations with THIS specific agent
+        memory = get_user_ai_employee_memory(organization_id, ai_employee_id, user_id, limit=20)
         result["memory_used"] = len(memory) > 0
-        
+
         # Generate answer
-        answer = generate_answer(user_id, question, context, sources, memory)
+        answer = generate_answer(
+            org_name=org_name,
+            ai_employee_name=ai_name,
+            ai_employee_role=ai_role,
+            job_description=job_desc,
+            user_name=user_name,
+            query=question,
+            context=context,
+            sources=sources,
+            memory=memory
+        )
         result["answer"] = answer
-        
-        # Save to memory for future reference
-        save_message(user_id, "user", question)
-        save_message(user_id, "assistant", answer)
-        
+
+        # Persist conversation
+        save_message(organization_id, ai_employee_id, user_id, "user", question)
+        save_message(organization_id, ai_employee_id, user_id, "assistant", answer)
+
         return result
-    
+
     except Exception as e:
         print(f"Error in answer_question: {e}")
         result["error"] = str(e)
         return result
-
-
-# ============================================================
-# UTILITY FUNCTIONS
-# ============================================================
-
-def chat_with_memory(user_id: str, messages: List[Dict]) -> str:
-    """
-    Alternative: Accept message history directly
-    Useful for multi-turn conversations in a single request
-    """
-    if not messages:
-        return "No messages provided"
-    
-    last_message = messages[-1].get("content", "")
-    return answer_question(user_id, last_message)["answer"]
