@@ -729,6 +729,80 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ============================================================
+       CONTEXT BAR  (Organization → AI Employee → User)
+    ============================================================ */
+    .context-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .ctx-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ctx-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .ctx-select, .ctx-input {
+      height: 32px;
+      padding: 0 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color .2s;
+      min-width: 0;
+    }
+    .ctx-select { min-width: 180px; }
+    .ctx-input  { width: 130px; }
+    .ctx-select:focus, .ctx-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .ctx-select:disabled { opacity: .5; cursor: not-allowed; }
+    .ctx-arrow {
+      font-size: 18px;
+      color: var(--text-3);
+      margin-top: 14px;
+      flex-shrink: 0;
+    }
+    .ctx-active-banner {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .ctx-pill {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .ctx-pill.org   { background: rgba(99,102,241,.15); color: #818cf8; border: 1px solid rgba(99,102,241,.3); }
+    .ctx-pill.agent { background: rgba(139,92,246,.15); color: #a78bfa; border: 1px solid rgba(139,92,246,.3); }
+    .ctx-pill.user  { background: rgba(16,185,129,.15);  color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+    .ctx-sep-sm { font-size: 14px; color: var(--text-3); }
+    @media (max-width: 700px) {
+      .context-bar { padding: 10px 16px; }
+      .ctx-select { min-width: 140px; }
+      .ctx-active-banner { margin-left: 0; }
+    }
+
+    /* ============================================================
        USER SWITCHER
     ============================================================ */
     .user-switcher {
@@ -919,6 +993,32 @@
   </div>
 
   <!-- ============================================================
+       CONTEXT BAR — Organization › AI Employee › User
+  ============================================================ -->
+  <div class="context-bar" id="ctx-bar">
+    <div class="ctx-slot">
+      <label class="ctx-label">🏢 Organization</label>
+      <select class="ctx-select" id="ctx-org-sel">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+    <span class="ctx-arrow">›</span>
+    <div class="ctx-slot">
+      <label class="ctx-label">🤖 AI Employee</label>
+      <select class="ctx-select" id="ctx-agent-sel" disabled>
+        <option value="">Select org first</option>
+      </select>
+    </div>
+    <span class="ctx-arrow">›</span>
+    <div class="ctx-slot">
+      <label class="ctx-label">👤 User ID</label>
+      <input class="ctx-input" id="ctx-user-inp" type="text" placeholder="e.g. ajay" autocomplete="off" />
+    </div>
+    <button class="btn btn-primary btn-sm" id="ctx-apply-btn" style="margin-top:14px">Set Context</button>
+    <div class="ctx-active-banner" id="ctx-active-banner" style="display:none"></div>
+  </div>
+
+  <!-- ============================================================
        CHAT TAB
   ============================================================ -->
   <div class="tab-content active" id="tab-chat">
@@ -986,9 +1086,8 @@
   <div class="tab-content" id="tab-docs">
     <!-- Left: upload panel -->
     <div class="docs-sidebar">
-      <div class="user-bar">
-        <label for="docs-uid">User ID</label>
-        <input id="docs-uid" type="text" placeholder="e.g. demo_user" autocomplete="off" />
+      <div class="user-bar" style="font-size:12px;color:var(--text-3);padding:8px 16px 0">
+        Documents are shared across the entire organization
       </div>
 
       <div
@@ -1033,11 +1132,11 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value" id="stat-docs">—</div>
-          <div class="stat-label">Documents</div>
+          <div class="stat-label">Org Docs</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" id="stat-chunks">—</div>
-          <div class="stat-label">Chunks</div>
+          <div class="stat-label">Org Chunks</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" id="stat-turns">—</div>
@@ -1050,7 +1149,7 @@
       </div>
       <div style="padding:0 16px 16px;">
         <button class="btn btn-danger btn-sm" id="btn-delete-docs" style="width:100%">
-          🗑 Delete All Documents for This User
+          🗑 Delete All Org Documents
         </button>
       </div>
     </div>
@@ -1061,9 +1160,7 @@
   ============================================================ -->
   <div class="tab-content" id="tab-memory">
     <div class="user-bar">
-      <label for="mem-uid">User ID</label>
-      <input id="mem-uid" type="text" placeholder="e.g. demo_user" autocomplete="off" />
-      <button class="btn btn-secondary btn-sm" id="btn-load-memory">Load</button>
+      <button class="btn btn-secondary btn-sm" id="btn-load-memory">↻ Load Memory</button>
       <button class="btn btn-danger btn-sm" id="btn-clear-memory">🗑 Clear</button>
     </div>
     <div class="memory-toolbar">
@@ -1095,7 +1192,6 @@ const API = 'https://web-production-cd44f.up.railway.app';
 // ============================================================
 const themeToggle = document.getElementById('theme-toggle');
 let isDark = (localStorage.getItem('theme') || 'dark') === 'dark';
-
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   themeToggle.textContent = isDark ? '🌙' : '☀️';
@@ -1113,7 +1209,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'docs') { loadDocs(); loadStats(); }
+    if (btn.dataset.tab === 'docs')   { loadDocs(); loadStats(); }
     if (btn.dataset.tab === 'memory') { loadMemory(); }
   });
 });
@@ -1127,95 +1223,167 @@ function toast(msg, type = 'info', duration = 3500) {
   el.className = `toast ${type}`;
   el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
   document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => {
-    el.classList.add('removing');
-    setTimeout(() => el.remove(), 300);
-  }, duration);
+  setTimeout(() => { el.classList.add('removing'); setTimeout(() => el.remove(), 300); }, duration);
 }
 
 // ============================================================
 // HEALTH CHECK
 // ============================================================
-const statusDot = document.getElementById('status-dot');
+const statusDot  = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-
 async function checkHealth() {
   try {
     const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      statusDot.classList.add('online');
-      statusText.textContent = 'API Online';
-    } else { throw new Error(); }
+    if (r.ok) { statusDot.classList.add('online'); statusText.textContent = 'API Online'; }
+    else throw new Error();
   } catch {
-    statusDot.classList.remove('online');
-    statusText.textContent = 'API Offline';
+    statusDot.classList.remove('online'); statusText.textContent = 'API Offline';
   }
 }
 checkHealth();
 setInterval(checkHealth, 30000);
 
 // ============================================================
-// USER ID SYNC (sync across tabs via localStorage)
+// 3-TIER CONTEXT  (Organization → AI Employee → User)
 // ============================================================
-function getUserId(field) {
-  return document.getElementById(field).value.trim() ||
-         localStorage.getItem('supernal_uid') || '';
-}
-function setUserId(val) {
-  localStorage.setItem('supernal_uid', val);
-  ['chat-uid','docs-uid','mem-uid'].forEach(id => {
-    document.getElementById(id).value = val;
-  });
-}
+const EMPTY_CTX = { orgId:'', orgName:'', agentId:'', agentName:'', agentRole:'', userId:'' };
 
-// Load saved user ID
-const savedUid = localStorage.getItem('supernal_uid') || '';
-if (savedUid) {
-  ['chat-uid','docs-uid','mem-uid'].forEach(id => {
-    document.getElementById(id).value = savedUid;
-  });
+function loadCtx() {
+  try { return JSON.parse(localStorage.getItem('supernal_ctx') || 'null') || {...EMPTY_CTX}; }
+  catch { return {...EMPTY_CTX}; }
 }
+function saveCtx() { localStorage.setItem('supernal_ctx', JSON.stringify(ctx)); }
 
-// Sync user ID fields
-['chat-uid','docs-uid','mem-uid'].forEach(id => {
-  document.getElementById(id).addEventListener('change', (e) => {
-    const val = e.target.value.trim();
-    if (val) {
-      setUserId(val);
-      addRecentUser(val);
-      updateCurrentUserUI(val);
+let ctx = loadCtx();
+
+async function fetchOrgs() {
+  const sel = document.getElementById('ctx-org-sel');
+  try {
+    const r = await fetch(`${API}/api/organizations`);
+    const data = await r.json();
+    const orgs = data.organizations || [];
+    sel.innerHTML = '<option value="">— Select Organization —</option>' +
+      orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+    if (ctx.orgId) {
+      sel.value = ctx.orgId;
+      if (sel.value) await fetchAgents(ctx.orgId);
     }
-  });
+  } catch {
+    sel.innerHTML = '<option value="">Failed to load orgs</option>';
+  }
+}
+
+async function fetchAgents(orgId) {
+  const sel = document.getElementById('ctx-agent-sel');
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const r = await fetch(`${API}/api/ai-employees/${orgId}`);
+    const data = await r.json();
+    const agents = data.ai_employees || [];
+    sel.innerHTML = '<option value="">— Select AI Employee —</option>' +
+      agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${escapeHtml(a.role)})</option>`).join('');
+    sel.disabled = false;
+    if (ctx.agentId) sel.value = ctx.agentId;
+  } catch {
+    sel.innerHTML = '<option value="">Failed to load agents</option>';
+    sel.disabled = false;
+  }
+}
+
+document.getElementById('ctx-org-sel').addEventListener('change', async (e) => {
+  const orgId   = e.target.value;
+  const orgName = e.target.options[e.target.selectedIndex]?.text || '';
+  ctx.orgId = orgId; ctx.orgName = orgName;
+  ctx.agentId = ''; ctx.agentName = ''; ctx.agentRole = '';
+  updateCtxBanner();
+  if (orgId) {
+    await fetchAgents(orgId);
+  } else {
+    const agSel = document.getElementById('ctx-agent-sel');
+    agSel.innerHTML = '<option value="">Select org first</option>';
+    agSel.disabled = true;
+  }
 });
 
-// ============================================================
-// USER SWITCHER
-// ============================================================
+document.getElementById('ctx-apply-btn').addEventListener('click', applyContext);
+document.getElementById('ctx-user-inp').addEventListener('keydown', e => { if (e.key === 'Enter') applyContext(); });
 
-// Palette for avatar colors — cycles by index
+function applyContext() {
+  const orgSel  = document.getElementById('ctx-org-sel');
+  const agSel   = document.getElementById('ctx-agent-sel');
+  const userInp = document.getElementById('ctx-user-inp');
+
+  if (!orgSel.value)       { toast('Select an organization',  'warning'); return; }
+  if (!agSel.value)        { toast('Select an AI employee',   'warning'); return; }
+  if (!userInp.value.trim()) { toast('Enter a User ID',       'warning'); return; }
+
+  ctx.orgId    = orgSel.value;
+  ctx.orgName  = orgSel.options[orgSel.selectedIndex]?.text || '';
+  ctx.agentId  = agSel.value;
+  const agTxt  = agSel.options[agSel.selectedIndex]?.text || '';
+  ctx.agentName = agTxt.split(' (')[0] || agTxt;
+  ctx.agentRole = (agTxt.match(/\((.+)\)/) || [])[1] || '';
+  ctx.userId   = userInp.value.trim();
+  saveCtx();
+
+  addRecentUser(ctx.userId);
+  updateCurrentUserUI(ctx.userId);
+  // sync chat-uid hidden input (used by user-bar)
+  document.getElementById('chat-uid').value = ctx.userId;
+
+  chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
+  renderChat();
+  updateCtxBanner();
+  toast(`Context: ${ctx.orgName} › ${ctx.agentName} › ${ctx.userId}`, 'success', 3000);
+}
+
+function updateCtxBanner() {
+  const banner = document.getElementById('ctx-active-banner');
+  if (ctx.orgId && ctx.agentId && ctx.userId) {
+    banner.style.display = 'flex';
+    banner.innerHTML = `
+      <span class="ctx-pill org">${escapeHtml(ctx.orgName)}</span>
+      <span class="ctx-sep-sm">›</span>
+      <span class="ctx-pill agent">${escapeHtml(ctx.agentName)}</span>
+      <span class="ctx-sep-sm">›</span>
+      <span class="ctx-pill user">${escapeHtml(ctx.userId)}</span>`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// Init context bar on load
+(async () => {
+  await fetchOrgs();
+  if (ctx.userId) {
+    document.getElementById('ctx-user-inp').value = ctx.userId;
+    document.getElementById('chat-uid').value = ctx.userId;
+    addRecentUser(ctx.userId);
+    updateCurrentUserUI(ctx.userId);
+  }
+  updateCtxBanner();
+})();
+
+// ============================================================
+// USER SWITCHER (unchanged UI, now updates ctx.userId)
+// ============================================================
 const AVATAR_COLORS = [
   '#6366f1','#8b5cf6','#ec4899','#f59e0b',
   '#10b981','#3b82f6','#ef4444','#14b8a6'
 ];
-
 function getAvatarColor(uid) {
   let hash = 0;
   for (let i = 0; i < uid.length; i++) hash = uid.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
+function getAvatarInitial(uid) { return uid ? uid[0].toUpperCase() : '?'; }
 
-function getAvatarInitial(uid) {
-  return uid ? uid[0].toUpperCase() : '?';
-}
-
-// Recent users list (max 6)
 function getRecentUsers() {
   try { return JSON.parse(localStorage.getItem('supernal_recent_users') || '[]'); }
   catch { return []; }
 }
-function saveRecentUsers(list) {
-  localStorage.setItem('supernal_recent_users', JSON.stringify(list));
-}
+function saveRecentUsers(list) { localStorage.setItem('supernal_recent_users', JSON.stringify(list)); }
 function addRecentUser(uid) {
   if (!uid) return;
   let list = getRecentUsers().filter(u => u !== uid);
@@ -1225,21 +1393,18 @@ function addRecentUser(uid) {
   renderDropdown();
 }
 function removeRecentUser(uid) {
-  const list = getRecentUsers().filter(u => u !== uid);
-  saveRecentUsers(list);
+  saveRecentUsers(getRecentUsers().filter(u => u !== uid));
   renderDropdown();
 }
 
 function renderDropdown() {
-  const currentUid = localStorage.getItem('supernal_uid') || '';
+  const currentUid = ctx.userId || '';
   const list = getRecentUsers();
   const udList = document.getElementById('ud-list');
-
   if (list.length === 0) {
     udList.innerHTML = `<div style="padding:8px 14px;font-size:12px;color:var(--text-3)">No recent users yet</div>`;
     return;
   }
-
   udList.innerHTML = list.map(uid => {
     const color = getAvatarColor(uid);
     const initial = getAvatarInitial(uid);
@@ -1252,8 +1417,6 @@ function renderDropdown() {
         <button class="ud-remove" data-remove="${uid}" title="Remove from history">×</button>
       </div>`;
   }).join('');
-
-  // Attach click handlers
   udList.querySelectorAll('.ud-item').forEach(item => {
     item.addEventListener('click', (e) => {
       if (e.target.closest('.ud-remove')) return;
@@ -1269,8 +1432,8 @@ function renderDropdown() {
 }
 
 function updateCurrentUserUI(uid) {
-  const pill = document.getElementById('current-user-pill');
-  const label = document.getElementById('current-user-label');
+  const pill    = document.getElementById('current-user-pill');
+  const label   = document.getElementById('current-user-label');
   const swAvatar = document.getElementById('sw-avatar');
   if (uid) {
     const color = getAvatarColor(uid);
@@ -1288,44 +1451,38 @@ function updateCurrentUserUI(uid) {
 function switchToUser(uid) {
   closeDropdown();
   if (!uid) return;
-
-  const prevUid = localStorage.getItem('supernal_uid') || '';
-  if (uid === prevUid) {
-    toast(`Already logged in as "${uid}"`, 'info', 2000);
-    return;
+  if (!ctx.orgId || !ctx.agentId) {
+    toast('Set Organization and AI Employee first', 'warning'); return;
   }
+  if (uid === ctx.userId) { toast(`Already "${uid}"`, 'info', 2000); return; }
 
-  setUserId(uid);
+  ctx.userId = uid;
+  saveCtx();
+  document.getElementById('ctx-user-inp').value = uid;
+  document.getElementById('chat-uid').value = uid;
   addRecentUser(uid);
   updateCurrentUserUI(uid);
+  updateCtxBanner();
 
-  // Load this user's local chat history (restore if they've chatted before)
-  chatHistory = JSON.parse(localStorage.getItem(`supernal_chat_${uid}`) || '[]');
+  chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
   renderChat();
-
-  // If no local history yet, show friendly empty state
   if (chatHistory.length === 0) {
     document.getElementById('chat-empty').innerHTML = `
       <div class="empty-icon">👤</div>
       <h3>Switched to <span style="color:var(--primary)">${escapeHtml(uid)}</span></h3>
-      <p>This user's data is isolated in the backend. Ask a question to see their memory.</p>
-    `;
+      <p>Chatting with <strong>${escapeHtml(ctx.agentName)}</strong> at <strong>${escapeHtml(ctx.orgName)}</strong>.</p>`;
     document.getElementById('chat-empty').style.display = '';
   }
-
   toast(`Switched to "${uid}"`, 'success', 2500);
   renderDropdown();
 }
 
-// Dropdown open/close
 const btnSwitcher = document.getElementById('btn-switcher');
 const userDropdown = document.getElementById('user-dropdown');
-
-function openDropdown() {
+function openDropdown()  {
   renderDropdown();
   userDropdown.classList.remove('hidden');
   btnSwitcher.classList.add('open');
-  // Close on outside click
   setTimeout(() => document.addEventListener('click', outsideClick), 0);
 }
 function closeDropdown() {
@@ -1336,30 +1493,25 @@ function closeDropdown() {
 function outsideClick(e) {
   if (!document.getElementById('user-switcher').contains(e.target)) closeDropdown();
 }
-
 btnSwitcher.addEventListener('click', (e) => {
   e.stopPropagation();
   userDropdown.classList.contains('hidden') ? openDropdown() : closeDropdown();
 });
-
 document.getElementById('ud-new-user').addEventListener('click', () => {
   closeDropdown();
-  const uid = localStorage.getItem('supernal_uid') || '';
-  if (uid) addRecentUser(uid); // save current before clearing
-  setUserId('');
+  if (ctx.userId) addRecentUser(ctx.userId);
+  ctx.userId = '';
+  saveCtx();
+  document.getElementById('ctx-user-inp').value = '';
+  document.getElementById('chat-uid').value = '';
   updateCurrentUserUI('');
+  updateCtxBanner();
   chatHistory = [];
   saveChat();
   renderChat();
-  document.getElementById('chat-uid').focus();
-  toast('Enter a new User ID to start fresh', 'info');
+  document.getElementById('ctx-user-inp').focus();
+  toast('Enter a new User ID in the context bar', 'info');
 });
-
-// Init switcher UI on load
-if (savedUid) {
-  addRecentUser(savedUid);
-  updateCurrentUserUI(savedUid);
-}
 
 // ============================================================
 // CHAT
@@ -1370,21 +1522,17 @@ const chatInput    = document.getElementById('chat-input');
 const btnSend      = document.getElementById('btn-send');
 
 function chatKey() {
-  const uid = localStorage.getItem('supernal_uid') || '__default__';
-  return `supernal_chat_${uid}`;
+  if (!ctx.orgId || !ctx.agentId || !ctx.userId) return 'supernal_chat___default';
+  return `supernal_chat_${ctx.orgId}_${ctx.agentId}_${ctx.userId}`;
 }
 let chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
 
-function saveChat() {
-  localStorage.setItem(chatKey(), JSON.stringify(chatHistory));
-}
+function saveChat() { localStorage.setItem(chatKey(), JSON.stringify(chatHistory)); }
 
 function renderChat() {
-  // Remove existing message nodes (keep empty state)
   chatMessages.querySelectorAll('.message, .typing-indicator').forEach(n => n.remove());
   if (chatHistory.length === 0) {
     chatEmpty.style.display = '';
-    updateBadge('docs-badge', 0, true);
     return;
   }
   chatEmpty.style.display = 'none';
@@ -1397,33 +1545,23 @@ function appendBubble(msg, scroll = true) {
   const isUser = msg.role === 'user';
   const div = document.createElement('div');
   div.className = `message ${msg.role}`;
-
-  const avatarEmoji = isUser ? '👤' : '🤖';
   const timeStr = msg.time ? new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-
   let metaHtml = `<div class="msg-meta">`;
-  if (!isUser && msg.memory_used) {
-    metaHtml += `<span class="memory-badge">🧠 Memory used</span>`;
-  }
+  if (!isUser && msg.memory_used) metaHtml += `<span class="memory-badge">🧠 Memory used</span>`;
   metaHtml += `<span class="msg-time">${timeStr}</span></div>`;
-
   let sourcesHtml = '';
   if (!isUser && msg.sources && msg.sources.length > 0) {
     sourcesHtml = `<div class="sources-list">` +
-      msg.sources.map(s =>
-        `<span class="source-chip" onclick="copyText('${s.replace(/'/g,"\\'")}')">📎 ${s}</span>`
-      ).join('') +
+      msg.sources.map(s => `<span class="source-chip" onclick="copyText('${s.replace(/'/g,"\\'")}')">📎 ${s}</span>`).join('') +
       `</div>`;
   }
-
   div.innerHTML = `
-    <div class="msg-avatar">${avatarEmoji}</div>
+    <div class="msg-avatar">${isUser ? '👤' : '🤖'}</div>
     <div class="msg-body">
       <div class="msg-bubble">${escapeHtml(msg.content)}</div>
       ${metaHtml}
       ${sourcesHtml}
-    </div>
-  `;
+    </div>`;
   chatMessages.appendChild(div);
   if (scroll) chatMessages.scrollTop = chatMessages.scrollHeight;
 }
@@ -1433,53 +1571,47 @@ function showTyping() {
   div.className = 'message assistant typing-indicator';
   div.innerHTML = `
     <div class="msg-avatar">🤖</div>
-    <div class="msg-body">
-      <div class="msg-bubble">
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-      </div>
-    </div>
-  `;
+    <div class="msg-body"><div class="msg-bubble">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div></div>`;
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   return div;
 }
 
 async function sendMessage() {
-  const uid = getUserId('chat-uid');
+  const { orgId, agentId, userId } = ctx;
   const text = chatInput.value.trim();
-  if (!uid) { toast('Please enter a User ID', 'warning'); return; }
+  if (!orgId || !agentId) { toast('Set context (org + AI employee) above', 'warning'); return; }
+  if (!userId)             { toast('Set a User ID in the context bar', 'warning'); return; }
   if (!text) return;
 
-  setUserId(uid);
   chatInput.value = '';
   autoResizeTextarea(chatInput);
   btnSend.disabled = true;
 
-  // Add user message
   const userMsg = { role: 'user', content: text, time: new Date().toISOString() };
   chatHistory.push(userMsg);
   saveChat();
   appendBubble(userMsg);
-
-  // Show typing indicator
   const typing = showTyping();
 
   try {
     const fd = new FormData();
-    fd.append('user_id', uid);
-    fd.append('question', text);
+    fd.append('organization_id', orgId);
+    fd.append('ai_employee_id',  agentId);
+    fd.append('user_id',         userId);
+    fd.append('question',        text);
 
     const r = await fetch(`${API}/api/chat`, { method: 'POST', body: fd });
     const data = await r.json();
     typing.remove();
-
     if (!r.ok) throw new Error(data.detail || 'Request failed');
 
     const aiMsg = {
-      role: 'assistant',
-      content: data.answer,
+      role: 'assistant', content: data.answer,
       time: new Date().toISOString(),
       memory_used: data.memory_used,
       sources: data.sources || []
@@ -1487,10 +1619,7 @@ async function sendMessage() {
     chatHistory.push(aiMsg);
     saveChat();
     appendBubble(aiMsg);
-
-    // Update memory badge
-    await updateMemBadge(uid);
-
+    await updateMemBadge();
   } catch (err) {
     typing.remove();
     toast(`Error: ${err.message}`, 'error');
@@ -1505,55 +1634,46 @@ async function sendMessage() {
 }
 
 btnSend.addEventListener('click', sendMessage);
-
 chatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 chatInput.addEventListener('input', () => autoResizeTextarea(chatInput));
 
-// Clear chat
 document.getElementById('btn-clear-chat').addEventListener('click', async () => {
-  const uid = getUserId('chat-uid');
-  if (!uid) { toast('Enter a User ID first', 'warning'); return; }
-  if (!confirm(`Clear all conversation memory for "${uid}"?`)) return;
+  const { orgId, agentId, userId } = ctx;
+  if (!orgId || !agentId || !userId) { toast('Set context first', 'warning'); return; }
+  if (!confirm(`Clear memory for "${userId}" with "${ctx.agentName}"?`)) return;
   try {
-    const r = await fetch(`${API}/api/memory?user_id=${encodeURIComponent(uid)}`, { method: 'DELETE' });
+    const params = `organization_id=${encodeURIComponent(orgId)}&ai_employee_id=${encodeURIComponent(agentId)}&user_id=${encodeURIComponent(userId)}`;
+    const r = await fetch(`${API}/api/memory?${params}`, { method: 'DELETE' });
     if (!r.ok) throw new Error('Failed');
-    chatHistory = [];
-    saveChat();
-    renderChat();
-    updateMemBadge(uid);
+    chatHistory = []; saveChat(); renderChat();
+    updateMemBadge();
     toast('Memory cleared', 'success');
   } catch { toast('Failed to clear memory', 'error'); }
 });
 
-// Export chat
 document.getElementById('btn-export').addEventListener('click', () => {
   if (chatHistory.length === 0) { toast('No messages to export', 'warning'); return; }
-  const uid = getUserId('chat-uid') || 'user';
+  const label = `${ctx.orgName}_${ctx.agentName}_${ctx.userId}`.replace(/\s+/g,'_') || 'chat';
   const text = chatHistory.map(m => {
     const t = m.time ? new Date(m.time).toLocaleString() : '';
     return `[${t}] ${m.role.toUpperCase()}: ${m.content}`;
   }).join('\n\n');
-  downloadText(`conversation_${uid}.txt`, text);
+  downloadText(`conversation_${label}.txt`, text);
   toast('Exported!', 'success');
 });
 
-// Render on load
 renderChat();
 
 // ============================================================
-// DOCUMENTS
+// DOCUMENTS  (org-scoped)
 // ============================================================
-const uploadZone  = document.getElementById('upload-zone');
-const fileInput   = document.getElementById('file-input');
-const pasteText   = document.getElementById('paste-text');
-const docList     = document.getElementById('doc-list');
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+const pasteText  = document.getElementById('paste-text');
+const docList    = document.getElementById('doc-list');
 
-// File drag & drop
 uploadZone.addEventListener('click', () => fileInput.click());
 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
@@ -1569,19 +1689,14 @@ fileInput.addEventListener('change', () => {
 });
 
 async function uploadFile(file) {
-  const uid = getUserId('docs-uid');
-  if (!uid) { toast('Enter a User ID first', 'warning'); return; }
-  setUserId(uid);
-
-  const allowed = ['pdf','txt','md'];
+  const { orgId } = ctx;
+  if (!orgId) { toast('Select an organization in the context bar first', 'warning'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!allowed.includes(ext)) { toast('Only PDF, TXT, MD supported', 'error'); return; }
-
+  if (!['pdf','txt','md'].includes(ext)) { toast('Only PDF, TXT, MD supported', 'error'); return; }
   toast(`Uploading ${file.name}…`, 'info');
   const fd = new FormData();
-  fd.append('user_id', uid);
+  fd.append('organization_id', orgId);
   fd.append('file', file);
-
   try {
     const r = await fetch(`${API}/api/upload-file`, { method: 'POST', body: fd });
     const data = await r.json();
@@ -1591,22 +1706,19 @@ async function uploadFile(file) {
   } catch (err) { toast(`Upload error: ${err.message}`, 'error'); }
 }
 
-// Upload text
 document.getElementById('btn-upload-text').addEventListener('click', async () => {
-  const uid = getUserId('docs-uid');
+  const { orgId } = ctx;
   const text = pasteText.value.trim();
-  if (!uid) { toast('Enter a User ID first', 'warning'); return; }
-  if (!text) { toast('Paste some text first', 'warning'); return; }
-  setUserId(uid);
+  if (!orgId) { toast('Select an organization in the context bar first', 'warning'); return; }
+  if (!text)  { toast('Paste some text first', 'warning'); return; }
 
   const btn = document.getElementById('btn-upload-text');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Uploading…';
 
   const fd = new FormData();
-  fd.append('user_id', uid);
+  fd.append('organization_id', orgId);
   fd.append('text', text);
-
   try {
     const r = await fetch(`${API}/api/upload-text`, { method: 'POST', body: fd });
     const data = await r.json();
@@ -1615,30 +1727,21 @@ document.getElementById('btn-upload-text').addEventListener('click', async () =>
     pasteText.value = '';
     loadDocs(); loadStats();
   } catch (err) { toast(`Error: ${err.message}`, 'error'); }
-  finally {
-    btn.disabled = false;
-    btn.innerHTML = '⬆ Upload Text';
-  }
+  finally { btn.disabled = false; btn.innerHTML = '⬆ Upload Text'; }
 });
 
 async function loadDocs() {
-  const uid = getUserId('docs-uid');
-  if (!uid) { docList.innerHTML = '<div class="doc-list-empty">Enter a User ID above</div>'; return; }
-  setUserId(uid);
+  const { orgId } = ctx;
+  if (!orgId) { docList.innerHTML = '<div class="doc-list-empty">Select an organization first</div>'; return; }
   docList.innerHTML = '<div class="doc-list-empty"><div class="spinner dark" style="margin:0 auto"></div></div>';
-
   try {
-    const r = await fetch(`${API}/api/documents?user_id=${encodeURIComponent(uid)}`);
+    const r = await fetch(`${API}/api/documents?organization_id=${encodeURIComponent(orgId)}`);
     const data = await r.json();
     const docs = data.documents || [];
     updateBadge('docs-badge', docs.length, docs.length === 0);
-
-    if (docs.length === 0) {
-      docList.innerHTML = '<div class="doc-list-empty">No documents yet</div>';
-      return;
-    }
+    if (docs.length === 0) { docList.innerHTML = '<div class="doc-list-empty">No documents yet</div>'; return; }
     docList.innerHTML = docs.map(d => {
-      const ext = (d.filename || '').split('.').pop().toLowerCase();
+      const ext  = (d.filename || '').split('.').pop().toLowerCase();
       const icon = ext === 'pdf' ? '📕' : ext === 'md' ? '📝' : '📄';
       const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString() : '';
       return `<div class="doc-item">
@@ -1653,30 +1756,31 @@ async function loadDocs() {
 }
 
 async function loadStats() {
-  const uid = getUserId('docs-uid');
-  if (!uid) return;
+  const { orgId, agentId, userId } = ctx;
+  if (!orgId || !agentId || !userId) return;
   try {
-    const r = await fetch(`${API}/api/stats?user_id=${encodeURIComponent(uid)}`);
+    const params = `organization_id=${encodeURIComponent(orgId)}&ai_employee_id=${encodeURIComponent(agentId)}&user_id=${encodeURIComponent(userId)}`;
+    const r = await fetch(`${API}/api/stats?${params}`);
     const d = await r.json();
-    document.getElementById('stat-docs').textContent  = d.documents ?? '—';
-    document.getElementById('stat-chunks').textContent = d.chunks ?? '—';
+    document.getElementById('stat-docs').textContent   = d.org_documents ?? '—';
+    document.getElementById('stat-chunks').textContent = d.org_chunks    ?? '—';
     document.getElementById('stat-turns').textContent  = d.conversation_turns ?? '—';
     document.getElementById('stat-msgs').textContent   = d.total_messages ?? '—';
     updateBadge('mem-badge', d.total_messages || 0, d.total_messages === 0);
   } catch {}
 }
 
-document.getElementById('btn-refresh-docs').addEventListener('click', () => { loadDocs(); });
-document.getElementById('btn-refresh-stats').addEventListener('click', () => { loadStats(); });
+document.getElementById('btn-refresh-docs').addEventListener('click',  loadDocs);
+document.getElementById('btn-refresh-stats').addEventListener('click', loadStats);
 
 document.getElementById('btn-delete-docs').addEventListener('click', async () => {
-  const uid = getUserId('docs-uid');
-  if (!uid) { toast('Enter a User ID first', 'warning'); return; }
-  if (!confirm(`Delete ALL documents and chunks for "${uid}"? This cannot be undone.`)) return;
+  const { orgId, orgName } = ctx;
+  if (!orgId) { toast('Select an organization first', 'warning'); return; }
+  if (!confirm(`Delete ALL documents for "${orgName}"? This cannot be undone.`)) return;
   try {
-    const r = await fetch(`${API}/api/documents?user_id=${encodeURIComponent(uid)}`, { method: 'DELETE' });
+    const r = await fetch(`${API}/api/documents?organization_id=${encodeURIComponent(orgId)}`, { method: 'DELETE' });
     if (!r.ok) throw new Error('Failed');
-    toast('All documents deleted', 'success');
+    toast('All org documents deleted', 'success');
     loadDocs(); loadStats();
   } catch { toast('Failed to delete documents', 'error'); }
 });
@@ -1690,12 +1794,12 @@ const memSearch   = document.getElementById('mem-search');
 let memoryData    = [];
 
 async function loadMemory() {
-  const uid = getUserId('mem-uid');
-  if (!uid) {
+  const { orgId, agentId, userId } = ctx;
+  if (!orgId || !agentId || !userId) {
+    memoryEmpty.innerHTML = `<div style="font-size:40px">🧠</div><h3 style="color:var(--text-2);font-size:15px">No context set</h3><p style="font-size:13px">Set Organization, AI Employee, and User ID in the context bar above.</p>`;
     memoryEmpty.style.display = '';
     return;
   }
-  setUserId(uid);
   memoryEmpty.style.display = 'none';
   memoryList.querySelectorAll('.memory-item').forEach(n => n.remove());
 
@@ -1705,10 +1809,11 @@ async function loadMemory() {
   memoryList.appendChild(loader);
 
   try {
-    const r = await fetch(`${API}/api/memory?user_id=${encodeURIComponent(uid)}&limit=100`);
+    const params = `organization_id=${encodeURIComponent(orgId)}&ai_employee_id=${encodeURIComponent(agentId)}&user_id=${encodeURIComponent(userId)}`;
+    const r = await fetch(`${API}/api/memory?${params}`);
     const data = await r.json();
     loader.remove();
-    memoryData = (data.memory || []).reverse(); // newest first
+    memoryData = (data.memory || []).reverse();
     renderMemory(memSearch.value.trim());
     updateBadge('mem-badge', memoryData.length, memoryData.length === 0);
   } catch {
@@ -1721,27 +1826,21 @@ async function loadMemory() {
 function renderMemory(query = '') {
   memoryList.querySelectorAll('.memory-item').forEach(n => n.remove());
   if (memoryData.length === 0) {
-    memoryEmpty.innerHTML = `<div style="font-size:40px">🧠</div><h3 style="color:var(--text-2);font-size:15px">No memory found</h3><p style="font-size:13px">This user has no conversation history yet.</p>`;
+    memoryEmpty.innerHTML = `<div style="font-size:40px">🧠</div><h3 style="color:var(--text-2);font-size:15px">No memory found</h3><p style="font-size:13px">${escapeHtml(ctx.userId)} has no conversations with ${escapeHtml(ctx.agentName)} yet.</p>`;
     memoryEmpty.style.display = '';
     return;
   }
   memoryEmpty.style.display = 'none';
   const q = query.toLowerCase();
-
   memoryData.forEach(msg => {
     const matches = !q || msg.content.toLowerCase().includes(q) || msg.role.toLowerCase().includes(q);
     const div = document.createElement('div');
     div.className = 'memory-item' + (!matches ? ' hidden' : '');
-
     const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
     let content = escapeHtml(msg.content);
     if (q && matches) {
-      content = content.replace(
-        new RegExp(escapeRegex(q), 'gi'),
-        m => `<mark>${m}</mark>`
-      );
+      content = content.replace(new RegExp(escapeRegex(q), 'gi'), m => `<mark>${m}</mark>`);
     }
-
     div.innerHTML = `
       <div class="memory-role">
         <span class="role-badge ${msg.role}">${msg.role === 'user' ? '👤 User' : '🤖 AI'}</span>
@@ -1749,39 +1848,32 @@ function renderMemory(query = '') {
       <div class="memory-content">
         <div class="memory-text">${content}</div>
         <div class="memory-ts">${ts}</div>
-      </div>
-    `;
+      </div>`;
     memoryList.appendChild(div);
   });
-
-  const visible = memoryData.filter(m =>
-    !q || m.content.toLowerCase().includes(q)
-  ).length;
+  const visible = memoryData.filter(m => !q || m.content.toLowerCase().includes(q)).length;
   if (visible === 0 && q) {
     const none = document.createElement('div');
-    none.className = 'memory-empty';
-    none.style.display = '';
+    none.className = 'memory-empty'; none.style.display = '';
     none.innerHTML = `<div style="font-size:32px">🔍</div><p style="font-size:13px">No results for "<strong>${escapeHtml(q)}</strong>"</p>`;
     memoryList.appendChild(none);
   }
 }
 
 memSearch.addEventListener('input', () => renderMemory(memSearch.value.trim()));
-
 document.getElementById('btn-load-memory').addEventListener('click', loadMemory);
 
 document.getElementById('btn-clear-memory').addEventListener('click', async () => {
-  const uid = getUserId('mem-uid');
-  if (!uid) { toast('Enter a User ID first', 'warning'); return; }
-  if (!confirm(`Clear ALL memory for "${uid}"? This cannot be undone.`)) return;
+  const { orgId, agentId, userId } = ctx;
+  if (!orgId || !agentId || !userId) { toast('Set context first', 'warning'); return; }
+  if (!confirm(`Clear ALL memory for "${userId}" with "${ctx.agentName}"? This cannot be undone.`)) return;
   try {
-    const r = await fetch(`${API}/api/memory?user_id=${encodeURIComponent(uid)}`, { method: 'DELETE' });
+    const params = `organization_id=${encodeURIComponent(orgId)}&ai_employee_id=${encodeURIComponent(agentId)}&user_id=${encodeURIComponent(userId)}`;
+    const r = await fetch(`${API}/api/memory?${params}`, { method: 'DELETE' });
     if (!r.ok) throw new Error('Failed');
     memoryData = [];
     renderMemory();
-    chatHistory = chatHistory.filter(m => false); // clear local chat too if same user
-    saveChat();
-    renderChat();
+    chatHistory = []; saveChat(); renderChat();
     toast('Memory cleared', 'success');
     updateBadge('mem-badge', 0, true);
   } catch { toast('Failed to clear memory', 'error'); }
@@ -1789,17 +1881,14 @@ document.getElementById('btn-clear-memory').addEventListener('click', async () =
 
 document.getElementById('btn-export-mem').addEventListener('click', () => {
   if (memoryData.length === 0) { toast('No memory to export', 'warning'); return; }
-  const uid = getUserId('mem-uid') || 'user';
+  const label = `${ctx.orgName}_${ctx.agentName}_${ctx.userId}`.replace(/\s+/g,'_') || 'memory';
   const text = [...memoryData].reverse().map(m => {
     const ts = m.timestamp ? new Date(m.timestamp).toLocaleString() : '';
     return `[${ts}] ${m.role.toUpperCase()}: ${m.content}`;
   }).join('\n\n');
-  downloadText(`memory_${uid}.txt`, text);
+  downloadText(`memory_${label}.txt`, text);
   toast('Memory exported!', 'success');
 });
-
-// Update memory badge when a user ID is entered on memory tab
-document.getElementById('mem-uid').addEventListener('change', loadMemory);
 
 // ============================================================
 // BADGE + MEMORY BADGE HELPER
@@ -1811,9 +1900,12 @@ function updateBadge(id, count, hide) {
   badge.textContent = count > 99 ? '99+' : count;
 }
 
-async function updateMemBadge(uid) {
+async function updateMemBadge() {
+  const { orgId, agentId, userId } = ctx;
+  if (!orgId || !agentId || !userId) return;
   try {
-    const r = await fetch(`${API}/api/stats?user_id=${encodeURIComponent(uid)}`);
+    const params = `organization_id=${encodeURIComponent(orgId)}&ai_employee_id=${encodeURIComponent(agentId)}&user_id=${encodeURIComponent(userId)}`;
+    const r = await fetch(`${API}/api/stats?${params}`);
     const d = await r.json();
     updateBadge('mem-badge', d.total_messages || 0, d.total_messages === 0);
   } catch {}
@@ -1824,34 +1916,26 @@ async function updateMemBadge(uid) {
 // ============================================================
 function escapeHtml(str) {
   return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
-
-function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
+function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function autoResizeTextarea(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
-
 function copyText(text) {
   navigator.clipboard.writeText(text)
     .then(() => toast(`Copied: ${text}`, 'success', 2000))
     .catch(() => toast('Copy failed', 'error'));
 }
-
 function downloadText(filename, text) {
   const a = document.createElement('a');
   a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
   a.download = filename;
   a.click();
 }
+
 </script>
 </body>
 </html>
