@@ -6,7 +6,7 @@ Real-time voice & text agent with persistent multi-user memory
 import os
 import io
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pypdf import PdfReader
@@ -263,108 +263,13 @@ async def health_check():
 
 
 # ============================================================
-# ROOT ENDPOINT
+# ROOT ENDPOINT — serve the UI
 # ============================================================
 
 @app.get("/")
 async def root():
-    """Root endpoint with API documentation"""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Supernal Persistent Agent API</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-            h1 { color: #333; }
-            .endpoint { background: #f4f4f4; padding: 15px; margin: 10px 0; border-left: 4px solid #007bff; }
-            code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
-        </style>
-    </head>
-    <body>
-        <h1>🤖 Supernal Persistent Agent</h1>
-        <p>Multi-user persistent memory RAG agent with OpenAI integration</p>
-        
-        <h2>API Endpoints</h2>
-        
-        <div class="endpoint">
-            <h3>POST /api/chat</h3>
-            <p>Chat with persistent memory</p>
-            <code>user_id, question</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>POST /api/upload-text</h3>
-            <p>Upload text directly</p>
-            <code>user_id, text</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>POST /api/upload-file</h3>
-            <p>Upload PDF or TXT file</p>
-            <code>user_id, file</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>GET /api/memory</h3>
-            <p>Get conversation history</p>
-            <code>user_id</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>DELETE /api/memory</h3>
-            <p>Clear conversation history</p>
-            <code>user_id</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>GET /api/documents</h3>
-            <p>List uploaded documents</p>
-            <code>user_id</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>DELETE /api/documents</h3>
-            <p>Delete all documents</p>
-            <code>user_id</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>GET /api/stats</h3>
-            <p>Get user statistics</p>
-            <code>user_id</code>
-        </div>
-        
-        <div class="endpoint">
-            <h3>GET /health</h3>
-            <p>Health check</p>
-        </div>
-        
-        <h2>Features</h2>
-        <ul>
-            <li>✅ Persistent memory across sessions</li>
-            <li>✅ Multi-user support with complete data isolation</li>
-            <li>✅ Vector search on documents (pgvector)</li>
-            <li>✅ Context-aware responses using past conversations</li>
-            <li>✅ PDF and text file ingestion</li>
-            <li>✅ LangSmith observability support</li>
-            <li>✅ Production-ready FastAPI backend</li>
-        </ul>
-        
-        <h2>Environment Variables Required</h2>
-        <ul>
-            <li>SUPABASE_URL</li>
-            <li>SUPABASE_KEY</li>
-            <li>OPENAI_API_KEY</li>
-            <li>LANGSMITH_API_KEY (optional)</li>
-        </ul>
-        
-        <hr>
-        <p><small>Built for Supernal AI - Multi-tenant persistent agent infrastructure</small></p>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+    """Serve the main UI"""
+    return FileResponse("index.html")
 
 
 if __name__ == "__main__":
