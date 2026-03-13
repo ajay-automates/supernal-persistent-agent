@@ -729,6 +729,135 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ============================================================
+       USER SWITCHER
+    ============================================================ */
+    .user-switcher {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .btn-switcher {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .btn-switcher:hover { background: var(--surface-3); color: var(--text); border-color: var(--primary); }
+    .btn-switcher .sw-avatar {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .btn-switcher .sw-caret { font-size: 9px; color: var(--text-3); transition: transform .2s; }
+    .btn-switcher.open .sw-caret { transform: rotate(180deg); }
+
+    /* Current user badge inside the user-bar */
+    .current-user-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px;
+      background: rgba(99,102,241,.12);
+      border: 1px solid rgba(99,102,241,.25);
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      white-space: nowrap;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .current-user-pill .cup-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    /* Dropdown panel */
+    .user-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 220px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      z-index: 999;
+      overflow: hidden;
+      animation: dropIn .15s ease;
+    }
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .user-dropdown.hidden { display: none; }
+    .ud-header {
+      padding: 10px 14px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .ud-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: background .15s;
+      font-size: 13px;
+    }
+    .ud-item:hover { background: var(--surface-2); }
+    .ud-item.active { background: rgba(99,102,241,.08); }
+    .ud-item.active .ud-name { color: var(--primary); font-weight: 600; }
+    .ud-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .ud-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ud-active-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+    .ud-remove {
+      width: 18px; height: 18px;
+      border: none; background: none;
+      color: var(--text-3);
+      font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+      flex-shrink: 0;
+      line-height: 1;
+      transition: all .15s;
+    }
+    .ud-remove:hover { background: rgba(239,68,68,.1); color: var(--danger); }
+    .ud-divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .ud-new {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 500;
+      transition: background .15s;
+    }
+    .ud-new:hover { background: rgba(99,102,241,.07); }
+
+    /* ============================================================
        RESPONSIVE
     ============================================================ */
     @media (max-width: 700px) {
@@ -796,6 +925,31 @@
     <div class="user-bar">
       <label for="chat-uid">User ID</label>
       <input id="chat-uid" type="text" placeholder="e.g. demo_user" autocomplete="off" />
+
+      <!-- Current user pill (shown once a user is active) -->
+      <div class="current-user-pill" id="current-user-pill" style="display:none">
+        <div class="cup-dot"></div>
+        <span id="current-user-label"></span>
+      </div>
+
+      <!-- Switch User dropdown -->
+      <div class="user-switcher" id="user-switcher">
+        <button class="btn-switcher" id="btn-switcher" title="Switch user">
+          <span class="sw-avatar" id="sw-avatar" style="background:#6366f1">👤</span>
+          Switch
+          <span class="sw-caret">▼</span>
+        </button>
+        <div class="user-dropdown hidden" id="user-dropdown">
+          <div class="ud-header">Recent Users</div>
+          <div id="ud-list"><!-- injected --></div>
+          <div class="ud-divider"></div>
+          <div class="ud-new" id="ud-new-user">
+            <span style="font-size:18px">＋</span>
+            New User
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn-secondary btn-sm" id="btn-export">⬇ Export</button>
       <button class="btn-icon danger" id="btn-clear-chat" title="Clear conversation">🗑</button>
     </div>
@@ -1025,9 +1179,187 @@ if (savedUid) {
 // Sync user ID fields
 ['chat-uid','docs-uid','mem-uid'].forEach(id => {
   document.getElementById(id).addEventListener('change', (e) => {
-    setUserId(e.target.value.trim());
+    const val = e.target.value.trim();
+    if (val) {
+      setUserId(val);
+      addRecentUser(val);
+      updateCurrentUserUI(val);
+    }
   });
 });
+
+// ============================================================
+// USER SWITCHER
+// ============================================================
+
+// Palette for avatar colors — cycles by index
+const AVATAR_COLORS = [
+  '#6366f1','#8b5cf6','#ec4899','#f59e0b',
+  '#10b981','#3b82f6','#ef4444','#14b8a6'
+];
+
+function getAvatarColor(uid) {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getAvatarInitial(uid) {
+  return uid ? uid[0].toUpperCase() : '?';
+}
+
+// Recent users list (max 6)
+function getRecentUsers() {
+  try { return JSON.parse(localStorage.getItem('supernal_recent_users') || '[]'); }
+  catch { return []; }
+}
+function saveRecentUsers(list) {
+  localStorage.setItem('supernal_recent_users', JSON.stringify(list));
+}
+function addRecentUser(uid) {
+  if (!uid) return;
+  let list = getRecentUsers().filter(u => u !== uid);
+  list.unshift(uid);
+  if (list.length > 6) list = list.slice(0, 6);
+  saveRecentUsers(list);
+  renderDropdown();
+}
+function removeRecentUser(uid) {
+  const list = getRecentUsers().filter(u => u !== uid);
+  saveRecentUsers(list);
+  renderDropdown();
+}
+
+function renderDropdown() {
+  const currentUid = localStorage.getItem('supernal_uid') || '';
+  const list = getRecentUsers();
+  const udList = document.getElementById('ud-list');
+
+  if (list.length === 0) {
+    udList.innerHTML = `<div style="padding:8px 14px;font-size:12px;color:var(--text-3)">No recent users yet</div>`;
+    return;
+  }
+
+  udList.innerHTML = list.map(uid => {
+    const color = getAvatarColor(uid);
+    const initial = getAvatarInitial(uid);
+    const isActive = uid === currentUid;
+    return `
+      <div class="ud-item${isActive ? ' active' : ''}" data-uid="${uid}">
+        <div class="ud-avatar" style="background:${color}">${initial}</div>
+        <span class="ud-name">${escapeHtml(uid)}</span>
+        ${isActive ? '<div class="ud-active-dot"></div>' : ''}
+        <button class="ud-remove" data-remove="${uid}" title="Remove from history">×</button>
+      </div>`;
+  }).join('');
+
+  // Attach click handlers
+  udList.querySelectorAll('.ud-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.ud-remove')) return;
+      switchToUser(item.dataset.uid);
+    });
+  });
+  udList.querySelectorAll('.ud-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeRecentUser(btn.dataset.remove);
+    });
+  });
+}
+
+function updateCurrentUserUI(uid) {
+  const pill = document.getElementById('current-user-pill');
+  const label = document.getElementById('current-user-label');
+  const swAvatar = document.getElementById('sw-avatar');
+  if (uid) {
+    const color = getAvatarColor(uid);
+    pill.style.display = 'flex';
+    label.textContent = uid;
+    swAvatar.textContent = getAvatarInitial(uid);
+    swAvatar.style.background = color;
+  } else {
+    pill.style.display = 'none';
+    swAvatar.textContent = '👤';
+    swAvatar.style.background = '#6366f1';
+  }
+}
+
+function switchToUser(uid) {
+  closeDropdown();
+  if (!uid) return;
+
+  const prevUid = localStorage.getItem('supernal_uid') || '';
+  if (uid === prevUid) {
+    toast(`Already logged in as "${uid}"`, 'info', 2000);
+    return;
+  }
+
+  setUserId(uid);
+  addRecentUser(uid);
+  updateCurrentUserUI(uid);
+
+  // Load this user's local chat history (restore if they've chatted before)
+  chatHistory = JSON.parse(localStorage.getItem(`supernal_chat_${uid}`) || '[]');
+  renderChat();
+
+  // If no local history yet, show friendly empty state
+  if (chatHistory.length === 0) {
+    document.getElementById('chat-empty').innerHTML = `
+      <div class="empty-icon">👤</div>
+      <h3>Switched to <span style="color:var(--primary)">${escapeHtml(uid)}</span></h3>
+      <p>This user's data is isolated in the backend. Ask a question to see their memory.</p>
+    `;
+    document.getElementById('chat-empty').style.display = '';
+  }
+
+  toast(`Switched to "${uid}"`, 'success', 2500);
+  renderDropdown();
+}
+
+// Dropdown open/close
+const btnSwitcher = document.getElementById('btn-switcher');
+const userDropdown = document.getElementById('user-dropdown');
+
+function openDropdown() {
+  renderDropdown();
+  userDropdown.classList.remove('hidden');
+  btnSwitcher.classList.add('open');
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', outsideClick), 0);
+}
+function closeDropdown() {
+  userDropdown.classList.add('hidden');
+  btnSwitcher.classList.remove('open');
+  document.removeEventListener('click', outsideClick);
+}
+function outsideClick(e) {
+  if (!document.getElementById('user-switcher').contains(e.target)) closeDropdown();
+}
+
+btnSwitcher.addEventListener('click', (e) => {
+  e.stopPropagation();
+  userDropdown.classList.contains('hidden') ? openDropdown() : closeDropdown();
+});
+
+document.getElementById('ud-new-user').addEventListener('click', () => {
+  closeDropdown();
+  const uid = localStorage.getItem('supernal_uid') || '';
+  if (uid) addRecentUser(uid); // save current before clearing
+  setUserId('');
+  updateCurrentUserUI('');
+  chatHistory = [];
+  saveChat();
+  renderChat();
+  document.getElementById('chat-uid').focus();
+  toast('Enter a new User ID to start fresh', 'info');
+});
+
+// Init switcher UI on load
+if (savedUid) {
+  addRecentUser(savedUid);
+  updateCurrentUserUI(savedUid);
+}
 
 // ============================================================
 // CHAT
@@ -1037,10 +1369,14 @@ const chatEmpty    = document.getElementById('chat-empty');
 const chatInput    = document.getElementById('chat-input');
 const btnSend      = document.getElementById('btn-send');
 
-let chatHistory = JSON.parse(localStorage.getItem('supernal_chat') || '[]');
+function chatKey() {
+  const uid = localStorage.getItem('supernal_uid') || '__default__';
+  return `supernal_chat_${uid}`;
+}
+let chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
 
 function saveChat() {
-  localStorage.setItem('supernal_chat', JSON.stringify(chatHistory));
+  localStorage.setItem(chatKey(), JSON.stringify(chatHistory));
 }
 
 function renderChat() {
