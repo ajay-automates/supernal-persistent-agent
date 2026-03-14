@@ -737,3 +737,211 @@ def get_org_metrics(organization_id: str) -> Dict:
     except Exception as e:
         print(f"Error getting org metrics: {e}")
         return {}
+
+
+# ─── Tool Verification / Logging ───────────────────────────────────────────────
+
+def log_email_sent(
+    organization_id: str,
+    recipient: str,
+    subject: str,
+    body: str,
+    email_id: str,
+    status: str = "sent"
+) -> bool:
+    """Log an email sent via tools."""
+    try:
+        supabase.table("mock_emails_sent").insert({
+            "organization_id": organization_id,
+            "email_id": email_id,
+            "recipient": recipient,
+            "subject": subject,
+            "body": body,
+            "status": status,
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging email: {e}")
+        return False
+
+
+def log_crm_lead(
+    organization_id: str,
+    lead_id: str,
+    company: str,
+    contact_name: str,
+    email: str,
+    phone: str = "",
+    stage: str = "New Lead"
+) -> bool:
+    """Log a CRM lead added via tools."""
+    try:
+        supabase.table("mock_crm_leads").insert({
+            "organization_id": organization_id,
+            "lead_id": lead_id,
+            "company": company,
+            "contact_name": contact_name,
+            "email": email,
+            "phone": phone,
+            "stage": stage,
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging CRM lead: {e}")
+        return False
+
+
+def log_support_ticket(
+    organization_id: str,
+    ticket_id: str,
+    customer_email: str,
+    issue_type: str,
+    description: str,
+    priority: str = "medium",
+    status: str = "open"
+) -> bool:
+    """Log a support ticket created via tools."""
+    try:
+        supabase.table("mock_support_tickets").insert({
+            "organization_id": organization_id,
+            "ticket_id": ticket_id,
+            "customer_email": customer_email,
+            "issue_type": issue_type,
+            "description": description,
+            "priority": priority,
+            "status": status,
+            "assigned_to": "support_team",
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging support ticket: {e}")
+        return False
+
+
+def log_calendar_event(
+    organization_id: str,
+    event_id: str,
+    attendee_email: str,
+    title: str,
+    date_time: str,
+    duration_minutes: int = 30,
+    zoom_link: str = ""
+) -> bool:
+    """Log a calendar event scheduled via tools."""
+    try:
+        supabase.table("mock_calendar_events").insert({
+            "organization_id": organization_id,
+            "event_id": event_id,
+            "attendee_email": attendee_email,
+            "title": title,
+            "date_time": date_time,
+            "duration_minutes": duration_minutes,
+            "zoom_link": zoom_link,
+            "status": "scheduled",
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging calendar event: {e}")
+        return False
+
+
+def log_equipment_order(
+    organization_id: str,
+    order_id: str,
+    equipment: str,
+    quantity: int,
+    unit_price: float,
+    total_cost: float,
+    employee_name: str,
+    estimated_delivery: str = None,
+    status: str = "ordered"
+) -> bool:
+    """Log an equipment order placed via tools."""
+    try:
+        row = {
+            "organization_id": organization_id,
+            "order_id": order_id,
+            "equipment": equipment,
+            "quantity": quantity,
+            "unit_price": unit_price,
+            "total_cost": total_cost,
+            "employee_name": employee_name,
+            "status": status,
+        }
+        if estimated_delivery:
+            row["estimated_delivery"] = estimated_delivery
+        supabase.table("mock_equipment_orders").insert(row).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging equipment order: {e}")
+        return False
+
+
+def get_emails_sent(organization_id: str) -> List[Dict]:
+    """Get all emails sent via tools for an organization."""
+    try:
+        resp = supabase.table("mock_emails_sent")\
+            .select("*")\
+            .eq("organization_id", organization_id)\
+            .order("sent_at", desc=True)\
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"Error getting emails: {e}")
+        return []
+
+
+def get_crm_leads(organization_id: str) -> List[Dict]:
+    """Get all CRM leads added via tools for an organization."""
+    try:
+        resp = supabase.table("mock_crm_leads")\
+            .select("*")\
+            .eq("organization_id", organization_id)\
+            .order("created_at", desc=True)\
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"Error getting CRM leads: {e}")
+        return []
+
+
+def get_support_tickets(organization_id: str) -> List[Dict]:
+    """Get all support tickets created via tools for an organization."""
+    try:
+        resp = supabase.table("mock_support_tickets")\
+            .select("*")\
+            .eq("organization_id", organization_id)\
+            .order("created_at", desc=True)\
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"Error getting support tickets: {e}")
+        return []
+
+
+def get_calendar_events(organization_id: str) -> List[Dict]:
+    """Get all calendar events scheduled via tools for an organization."""
+    try:
+        resp = supabase.table("mock_calendar_events")\
+            .select("*")\
+            .eq("organization_id", organization_id)\
+            .order("created_at", desc=True)\
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"Error getting calendar events: {e}")
+        return []
+
+
+def get_equipment_orders(organization_id: str) -> List[Dict]:
+    """Get all equipment orders placed via tools for an organization."""
+    try:
+        resp = supabase.table("mock_equipment_orders")\
+            .select("*")\
+            .eq("organization_id", organization_id)\
+            .order("created_at", desc=True)\
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        print(f"Error getting equipment orders: {e}")
+        return []

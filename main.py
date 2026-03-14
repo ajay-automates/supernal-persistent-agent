@@ -38,7 +38,10 @@ from db import (
     # Observability
     log_api_call, log_error, get_org_metrics,
     # Stats & validation
-    get_stats, validate_hierarchy
+    get_stats, validate_hierarchy,
+    # Tool Verification
+    get_emails_sent, get_crm_leads, get_support_tickets,
+    get_calendar_events, get_equipment_orders
 )
 
 app = FastAPI(
@@ -488,6 +491,90 @@ async def get_tool_executions(organization_id: str, ai_employee_id: str, user_id
     try:
         executions = get_tool_execution_history(organization_id, ai_employee_id, user_id)
         return {"executions": executions, "count": len(executions)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# TOOL VERIFICATION ENDPOINTS
+# ============================================================
+
+@app.get("/api/verify/emails/{organization_id}")
+async def get_verified_emails(organization_id: str):
+    """Get all emails sent by AI employees (verification dashboard)"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        emails = get_emails_sent(organization_id)
+        return {
+            "count": len(emails),
+            "emails": emails
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/verify/crm-leads/{organization_id}")
+async def get_verified_crm_leads(organization_id: str):
+    """Get all CRM leads added by AI employees (verification dashboard)"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        leads = get_crm_leads(organization_id)
+        return {
+            "count": len(leads),
+            "leads": leads
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/verify/tickets/{organization_id}")
+async def get_verified_tickets(organization_id: str):
+    """Get all support tickets created by AI employees (verification dashboard)"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        tickets = get_support_tickets(organization_id)
+        return {
+            "count": len(tickets),
+            "tickets": tickets
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/verify/calendar/{organization_id}")
+async def get_verified_calendar(organization_id: str):
+    """Get all calendar events scheduled by AI employees (verification dashboard)"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        events = get_calendar_events(organization_id)
+        return {
+            "count": len(events),
+            "events": events
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/verify/equipment/{organization_id}")
+async def get_verified_equipment(organization_id: str):
+    """Get all equipment orders placed by AI employees (verification dashboard)"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        orders = get_equipment_orders(organization_id)
+        return {
+            "count": len(orders),
+            "orders": orders
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

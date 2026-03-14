@@ -487,7 +487,7 @@ Sources: {', '.join(sources) if sources else 'None'}"""
             # Execute the tool and time it
             start_ms = int(time.time() * 1000)
             try:
-                tool_result = route_tool_call(tool_name, tool_params)
+                tool_result = route_tool_call(tool_name, tool_params, organization_id, ai_employee_id, user_id)
                 status = "success"
                 error_msg = None
             except Exception as te:
@@ -683,7 +683,7 @@ Sources: {', '.join(sources) if sources else 'None'}"""
 
             start_ms = int(time.time() * 1000)
             try:
-                tool_result = route_tool_call(tool_name, tool_params)
+                tool_result = route_tool_call(tool_name, tool_params, organization_id, ai_employee_id, user_id)
                 status = "success"
                 error_msg = None
             except Exception as te:

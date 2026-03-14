@@ -22,6 +22,24 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger("tools")
 
+# Verify logging helper - imported lazily to avoid circular imports
+def _get_db_module():
+    try:
+        from db import (
+            log_email_sent, log_crm_lead, log_support_ticket,
+            log_calendar_event, log_equipment_order, log_tool_execution
+        )
+        return {
+            "log_email_sent": log_email_sent,
+            "log_crm_lead": log_crm_lead,
+            "log_support_ticket": log_support_ticket,
+            "log_calendar_event": log_calendar_event,
+            "log_equipment_order": log_equipment_order,
+            "log_tool_execution": log_tool_execution,
+        }
+    except Exception:
+        return {}
+
 # ──────────────────────────────────────────────────────────────
 # HELPERS
 # ──────────────────────────────────────────────────────────────
@@ -47,23 +65,32 @@ def _log(tool: str, params: dict, result: dict):
 # AMAZON — SALES / SDR TOOLS
 # ══════════════════════════════════════════════════════════════
 
-def send_email_tool(params: dict) -> dict:
+def send_email_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Simulate sending a sales outreach email.
     params: to, subject, body, from_name (optional)
     """
+    start_time = time.time()
     _fake_latency(0.4, 1.0)
 
     to       = params.get("to", "prospect@example.com")
     subject  = params.get("subject", "Following up")
     body     = params.get("body", "")
     from_name = params.get("from_name", "Amazon Sales Bot")
+    email_id = f"MSG-{_short_id()}"
+
+    # Log to mock emails table if org provided
+    if organization_id:
+        db = _get_db_module()
+        if db.get("log_email_sent"):
+            status = "bounced" if random.random() < 0.05 else "sent"
+            db["log_email_sent"](organization_id, to, subject, body, email_id, status)
 
     # Simulate occasional bounce
     if random.random() < 0.05:
         result = {
             "status": "bounced",
-            "email_id": f"MSG-{_short_id()}",
+            "email_id": email_id,
             "to": to,
             "subject": subject,
             "error": "Mailbox does not exist",
@@ -72,7 +99,7 @@ def send_email_tool(params: dict) -> dict:
     else:
         result = {
             "status": "sent",
-            "email_id": f"MSG-{_short_id()}",
+            "email_id": email_id,
             "to": to,
             "from": f"{from_name} <noreply@amazon.com>",
             "subject": subject,
@@ -81,22 +108,39 @@ def send_email_tool(params: dict) -> dict:
             "tracking_url": f"https://mail.amazon.internal/track/{_short_id()}",
         }
 
+    latency_ms = int((time.time() - start_time) * 1000)
+    if organization_id and ai_employee_id and user_id:
+        db = _get_db_module()
+        if db.get("log_tool_execution"):
+            db["log_tool_execution"](
+                organization_id, ai_employee_id, user_id, "send_email",
+                params, result, "success", None, latency_ms
+            )
+
     _log("send_email_tool", params, result)
     return result
 
 
-def add_lead_to_crm_tool(params: dict) -> dict:
+def add_lead_to_crm_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Add a prospect to Salesforce CRM.
     params: company, contact_name, email, phone (optional), industry, company_size, opportunity_stage
     """
+    start_time = time.time()
     _fake_latency(0.5, 1.5)
 
     company   = params.get("company", "Unknown Co")
     contact   = params.get("contact_name", "")
     email     = params.get("email", "")
+    phone     = params.get("phone", "")
     stage     = params.get("opportunity_stage", "New Lead")
     lead_id   = f"LD-{_short_id()}"
+
+    # Log to mock CRM table if org provided
+    if organization_id:
+        db = _get_db_module()
+        if db.get("log_crm_lead"):
+            db["log_crm_lead"](organization_id, lead_id, company, contact, email, phone, stage)
 
     result = {
         "status": "created",
@@ -111,15 +155,25 @@ def add_lead_to_crm_tool(params: dict) -> dict:
         "owner": "Sales Bot (SDR)",
     }
 
+    latency_ms = int((time.time() - start_time) * 1000)
+    if organization_id and ai_employee_id and user_id:
+        db = _get_db_module()
+        if db.get("log_tool_execution"):
+            db["log_tool_execution"](
+                organization_id, ai_employee_id, user_id, "add_lead_to_crm",
+                params, result, "success", None, latency_ms
+            )
+
     _log("add_lead_to_crm_tool", params, result)
     return result
 
 
-def schedule_meeting_tool(params: dict) -> dict:
+def schedule_meeting_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Book a discovery call with a prospect.
     params: attendee_email, attendee_name, date (YYYY-MM-DD), time (HH:MM), duration_min
     """
+    start_time = time.time()
     _fake_latency(0.6, 1.8)
 
     attendee  = params.get("attendee_email", "prospect@example.com")
@@ -129,6 +183,15 @@ def schedule_meeting_tool(params: dict) -> dict:
     duration  = params.get("duration_min", 30)
     event_id  = f"EVT-{_short_id()}"
     zoom_id   = _short_id()
+
+    # Log to mock calendar table if org provided
+    if organization_id:
+        db = _get_db_module()
+        if db.get("log_calendar_event"):
+            db["log_calendar_event"](
+                organization_id, event_id, attendee, f"Discovery Call with {name}",
+                f"{date}T{time_str}", duration, f"https://zoom.us/j/{zoom_id}"
+            )
 
     result = {
         "status": "scheduled",
@@ -146,6 +209,15 @@ def schedule_meeting_tool(params: dict) -> dict:
         "confirmation_sent": True,
         "created_at": _now_iso(),
     }
+
+    latency_ms = int((time.time() - start_time) * 1000)
+    if organization_id and ai_employee_id and user_id:
+        db = _get_db_module()
+        if db.get("log_tool_execution"):
+            db["log_tool_execution"](
+                organization_id, ai_employee_id, user_id, "schedule_meeting",
+                params, result, "success", None, latency_ms
+            )
 
     _log("schedule_meeting_tool", params, result)
     return result
@@ -282,20 +354,30 @@ def search_knowledge_base_tool(params: dict) -> dict:
     return result
 
 
-def create_support_ticket_tool(params: dict) -> dict:
+def create_support_ticket_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Create a support ticket in Stripe's ticketing system.
     params: customer_id, issue_type (billing|technical|account|fraud), description, priority (low|medium|high|critical)
     """
+    start_time = time.time()
     _fake_latency(0.4, 1.0)
 
     customer  = params.get("customer_id", "cus_unknown")
+    customer_email = params.get("customer_email", f"{customer}@example.com")
     issue     = params.get("issue_type", "general")
     desc      = params.get("description", "")
     priority  = params.get("priority", "medium")
     ticket_id = f"TKT-{_short_id()}"
 
     SLA_MAP = {"critical": "30 minutes", "high": "2 hours", "medium": "8 hours", "low": "24 hours"}
+
+    # Log to mock tickets table if org provided
+    if organization_id:
+        db = _get_db_module()
+        if db.get("log_support_ticket"):
+            db["log_support_ticket"](
+                organization_id, ticket_id, customer_email, issue, desc, priority, "open"
+            )
 
     result = {
         "status": "created",
@@ -310,6 +392,15 @@ def create_support_ticket_tool(params: dict) -> dict:
         "created_at": _now_iso(),
         "auto_response_sent": priority in ("low", "medium"),
     }
+
+    latency_ms = int((time.time() - start_time) * 1000)
+    if organization_id and ai_employee_id and user_id:
+        db = _get_db_module()
+        if db.get("log_tool_execution"):
+            db["log_tool_execution"](
+                organization_id, ai_employee_id, user_id, "create_support_ticket",
+                params, result, "success", None, latency_ms
+            )
 
     _log("create_support_ticket_tool", params, result)
     return result
@@ -511,11 +602,12 @@ def schedule_meeting_room_tool(params: dict) -> dict:
     return result
 
 
-def order_equipment_tool(params: dict) -> dict:
+def order_equipment_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Order equipment for an employee.
     params: employee_name, employee_id, items (list of dicts with name/quantity), shipping_address (optional)
     """
+    start_time = time.time()
     _fake_latency(0.5, 1.5)
 
     employee  = params.get("employee_name", "Employee")
@@ -532,6 +624,7 @@ def order_equipment_tool(params: dict) -> dict:
 
     order_items = []
     total = 0
+    equipment_str = ""
     for item in (items if isinstance(items, list) else [items]):
         name = item.get("name", "Item") if isinstance(item, dict) else str(item)
         qty  = item.get("quantity", 1) if isinstance(item, dict) else 1
@@ -539,7 +632,28 @@ def order_equipment_tool(params: dict) -> dict:
         unit_price = PRICES[price_key]
         subtotal = unit_price * qty
         total += subtotal
+        equipment_str = name  # Use first item for logging
         order_items.append({"item": name, "quantity": qty, "unit_price": f"${unit_price:,}", "subtotal": f"${subtotal:,}"})
+
+    estimated_delivery = _future_iso(days=random.randint(3, 7))[:10]
+
+    # Log to mock equipment table if org provided
+    if organization_id and order_items:
+        db = _get_db_module()
+        if db.get("log_equipment_order"):
+            first_item = order_items[0]
+            # Extract unit price as float
+            unit_price_str = first_item.get("unit_price", "0").replace("$", "").replace(",", "")
+            try:
+                unit_price_float = float(unit_price_str)
+            except:
+                unit_price_float = 0.0
+
+            db["log_equipment_order"](
+                organization_id, order_id, equipment_str,
+                len(order_items), unit_price_float, float(total),
+                employee, estimated_delivery, "ordered"
+            )
 
     result = {
         "status": "ordered",
@@ -549,12 +663,21 @@ def order_equipment_tool(params: dict) -> dict:
         "items": order_items,
         "total_cost": f"${total:,}",
         "vendor": "Coupa Procurement",
-        "estimated_delivery": _future_iso(days=random.randint(3, 7))[:10],
+        "estimated_delivery": estimated_delivery,
         "coupa_url": f"https://techventus.coupahost.com/orders/{order_id}",
         "tracking_number": f"1Z{_short_id()}",
         "it_setup_scheduled": True,
         "ordered_at": _now_iso(),
     }
+
+    latency_ms = int((time.time() - start_time) * 1000)
+    if organization_id and ai_employee_id and user_id:
+        db = _get_db_module()
+        if db.get("log_tool_execution"):
+            db["log_tool_execution"](
+                organization_id, ai_employee_id, user_id, "order_equipment",
+                params, result, "success", None, latency_ms
+            )
 
     _log("order_equipment_tool", params, result)
     return result
@@ -633,14 +756,20 @@ TOOL_REGISTRY = {
 }
 
 
-def route_tool_call(tool_name: str, params: dict) -> dict:
+def route_tool_call(tool_name: str, params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Route a tool call by name.  Falls back to a descriptive stub for unknowns.
     This is the drop-in replacement for the route_tool_call in agent.py.
     """
     fn = TOOL_REGISTRY.get(tool_name)
     if fn:
-        return fn(params)
+        # Check if function accepts the logging parameters
+        import inspect
+        sig = inspect.signature(fn)
+        if len(sig.parameters) > 1:  # More than just 'params'
+            return fn(params, organization_id, ai_employee_id, user_id)
+        else:
+            return fn(params)
 
     # Unknown tool stub
     _fake_latency(0.2, 0.5)

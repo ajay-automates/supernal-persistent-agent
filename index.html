@@ -1586,6 +1586,9 @@
     <button class="tab-btn" data-tab="users">
       👥 Users
     </button>
+    <button class="tab-btn" data-tab="verification">
+      🔍 Verification
+    </button>
     <button class="tab-btn" data-tab="metrics">
       📊 Metrics
     </button>
@@ -2023,6 +2026,80 @@
       <div id="users-empty" style="text-align:center;padding:40px;color:var(--text-3)">
         <div style="font-size:40px;margin-bottom:8px">👥</div>
         <p>No users yet. Create one or select an organization.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       VERIFICATION TAB
+  ============================================================ -->
+  <div class="tab-content" id="tab-verification">
+    <div style="padding:20px;flex:1;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h3 style="font-size:15px;font-weight:600">🔍 Tool Execution Verification</h3>
+        <button class="btn btn-secondary btn-sm" onclick="loadVerificationAll()">Refresh All</button>
+      </div>
+
+      <p style="color:var(--text-2);margin-bottom:20px;font-size:13px">View all actions taken by AI employees. Each section shows real records created in the system.</p>
+
+      <!-- Verification Grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+
+        <!-- Emails Sent -->
+        <div style="border:1px solid var(--border);border-radius:8px;background:var(--surface-2);overflow:hidden">
+          <div style="background:var(--surface-3);padding:12px 16px;border-bottom:1px solid var(--border)">
+            <h4 style="margin:0;font-size:14px;font-weight:600">📧 Emails Sent</h4>
+          </div>
+          <div style="padding:12px 16px">
+            <button class="btn btn-primary btn-sm" onclick="loadVerificationEmails()" style="width:100%;margin-bottom:10px">Load Emails</button>
+            <div id="verify-emails-list" style="font-size:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- CRM Leads -->
+        <div style="border:1px solid var(--border);border-radius:8px;background:var(--surface-2);overflow:hidden">
+          <div style="background:var(--surface-3);padding:12px 16px;border-bottom:1px solid var(--border)">
+            <h4 style="margin:0;font-size:14px;font-weight:600">👥 CRM Leads</h4>
+          </div>
+          <div style="padding:12px 16px">
+            <button class="btn btn-primary btn-sm" onclick="loadVerificationLeads()" style="width:100%;margin-bottom:10px">Load Leads</button>
+            <div id="verify-leads-list" style="font-size:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Support Tickets -->
+        <div style="border:1px solid var(--border);border-radius:8px;background:var(--surface-2);overflow:hidden">
+          <div style="background:var(--surface-3);padding:12px 16px;border-bottom:1px solid var(--border)">
+            <h4 style="margin:0;font-size:14px;font-weight:600">🎫 Support Tickets</h4>
+          </div>
+          <div style="padding:12px 16px">
+            <button class="btn btn-primary btn-sm" onclick="loadVerificationTickets()" style="width:100%;margin-bottom:10px">Load Tickets</button>
+            <div id="verify-tickets-list" style="font-size:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Calendar Events -->
+        <div style="border:1px solid var(--border);border-radius:8px;background:var(--surface-2);overflow:hidden">
+          <div style="background:var(--surface-3);padding:12px 16px;border-bottom:1px solid var(--border)">
+            <h4 style="margin:0;font-size:14px;font-weight:600">📅 Calendar Events</h4>
+          </div>
+          <div style="padding:12px 16px">
+            <button class="btn btn-primary btn-sm" onclick="loadVerificationCalendar()" style="width:100%;margin-bottom:10px">Load Events</button>
+            <div id="verify-calendar-list" style="font-size:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Equipment Orders -->
+        <div style="border:1px solid var(--border);border-radius:8px;background:var(--surface-2);overflow:hidden">
+          <div style="background:var(--surface-3);padding:12px 16px;border-bottom:1px solid var(--border)">
+            <h4 style="margin:0;font-size:14px;font-weight:600">📦 Equipment Orders</h4>
+          </div>
+          <div style="padding:12px 16px">
+            <button class="btn btn-primary btn-sm" onclick="loadVerificationEquipment()" style="width:100%;margin-bottom:10px">Load Orders</button>
+            <div id="verify-equipment-list" style="font-size:12px;max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -3282,6 +3359,148 @@ setInterval(() => {
     loadMetrics();
   }
 }, 30000);
+
+// ============================================================
+// VERIFICATION FUNCTIONS
+// ============================================================
+
+async function loadVerificationAll() {
+  const orgId = ctx.orgId;
+  if (!orgId) {
+    toast('Please select an organization first', 'error');
+    return;
+  }
+  await loadVerificationEmails();
+  await loadVerificationLeads();
+  await loadVerificationTickets();
+  await loadVerificationCalendar();
+  await loadVerificationEquipment();
+  toast('All verification data loaded', 'success');
+}
+
+async function loadVerificationEmails() {
+  const orgId = ctx.orgId;
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${API}/api/verify/emails/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load emails');
+    const data = await r.json();
+    const list = document.getElementById('verify-emails-list');
+    if (!data.emails || data.emails.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-3)">No emails sent yet</p>';
+    } else {
+      list.innerHTML = data.emails.map(e => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--primary);margin-bottom:2px">${escapeHtml(e.recipient)}</div>
+          <div style="color:var(--text-2);font-size:11px">${escapeHtml(e.subject)}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:4px">${e.sent_at ? new Date(e.sent_at).toLocaleString() : ''}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('verify-emails-list').innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadVerificationLeads() {
+  const orgId = ctx.orgId;
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${API}/api/verify/crm-leads/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load leads');
+    const data = await r.json();
+    const list = document.getElementById('verify-leads-list');
+    if (!data.leads || data.leads.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-3)">No leads added yet</p>';
+    } else {
+      list.innerHTML = data.leads.map(l => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--primary);margin-bottom:2px">${escapeHtml(l.contact_name)}</div>
+          <div style="color:var(--text-2);font-size:11px">${escapeHtml(l.company)}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:2px">${escapeHtml(l.email)}</div>
+          <div style="color:var(--text-3);font-size:10px">${escapeHtml(l.stage)}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('verify-leads-list').innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadVerificationTickets() {
+  const orgId = ctx.orgId;
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${API}/api/verify/tickets/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load tickets');
+    const data = await r.json();
+    const list = document.getElementById('verify-tickets-list');
+    if (!data.tickets || data.tickets.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-3)">No tickets created yet</p>';
+    } else {
+      list.innerHTML = data.tickets.map(t => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--primary);margin-bottom:2px">${escapeHtml(t.ticket_id)}</div>
+          <div style="color:var(--text-2);font-size:11px">${escapeHtml(t.issue_type)}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:2px">Priority: ${escapeHtml(t.priority)}</div>
+          <div style="color:var(--text-3);font-size:10px">${t.created_at ? new Date(t.created_at).toLocaleString() : ''}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('verify-tickets-list').innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadVerificationCalendar() {
+  const orgId = ctx.orgId;
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${API}/api/verify/calendar/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load calendar');
+    const data = await r.json();
+    const list = document.getElementById('verify-calendar-list');
+    if (!data.events || data.events.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-3)">No events scheduled yet</p>';
+    } else {
+      list.innerHTML = data.events.map(e => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--primary);margin-bottom:2px">${escapeHtml(e.title)}</div>
+          <div style="color:var(--text-2);font-size:11px">${escapeHtml(e.attendee_email)}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:2px">${e.date_time}</div>
+          ${e.zoom_link ? `<div style="color:var(--primary);font-size:10px"><a href="${escapeHtml(e.zoom_link)}" target="_blank">Zoom Link</a></div>` : ''}
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('verify-calendar-list').innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadVerificationEquipment() {
+  const orgId = ctx.orgId;
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${API}/api/verify/equipment/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load orders');
+    const data = await r.json();
+    const list = document.getElementById('verify-equipment-list');
+    if (!data.orders || data.orders.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-3)">No orders placed yet</p>';
+    } else {
+      list.innerHTML = data.orders.map(o => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-weight:600;color:var(--primary);margin-bottom:2px">${escapeHtml(o.order_id)}</div>
+          <div style="color:var(--text-2);font-size:11px">${escapeHtml(o.equipment)} x${o.quantity}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:2px">For: ${escapeHtml(o.employee_name)}</div>
+          <div style="color:var(--success);font-size:10px">$${Number(o.total_cost).toFixed(2)}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    document.getElementById('verify-equipment-list').innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
 
 // ============================================================
 // VOICE SYSTEM — Web Speech API (STT + TTS) + Web Audio (waveform)
