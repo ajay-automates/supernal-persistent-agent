@@ -1243,228 +1243,227 @@
     }
 
     /* ============================================================
-       VOICE SYSTEM
+       VOICE CALL OVERLAY
     ============================================================ */
 
-    /* Voice Panel */
     .voice-panel {
-      background: var(--surface);
-      border-top: 2px solid var(--primary);
-      flex-shrink: 0;
-      overflow: hidden;
+      position: fixed; inset: 0; z-index: 999;
+      background: linear-gradient(160deg, #07080f 0%, #0b0d18 55%, #07080f 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0; overflow: hidden;
     }
-    .voice-panel-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 18px 0;
+    .voice-panel::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 10%, rgba(99,102,241,.09) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 35% at 50% 95%, rgba(52,211,153,.05) 0%, transparent 70%);
     }
-    .voice-panel-title {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 13px; font-weight: 600; color: var(--text);
+
+    /* Top bar */
+    .vc-topbar {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+      background: rgba(255,255,255,.025); border-bottom: 1px solid rgba(255,255,255,.055);
+      z-index: 1;
     }
+    .vc-topbar-title {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+      color: rgba(255,255,255,.3); text-transform: uppercase;
+    }
+    .vc-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+
     .voice-live-badge {
-      display: none;
-      font-size: 11px; padding: 2px 8px;
-      border-radius: 99px;
+      display: none; font-size: 10px; padding: 3px 9px; border-radius: 99px;
+      font-weight: 700; letter-spacing: .5px;
       background: rgba(16,185,129,.15); color: #34d399;
-      border: 1px solid rgba(16,185,129,.3);
-      animation: blink 1.4s ease infinite;
+      border: 1px solid rgba(16,185,129,.3); animation: blink 1.4s ease infinite;
     }
-    .voice-live-badge.show { display: inline; }
+    .voice-live-badge.show { display: inline-flex; align-items: center; gap: 4px; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    /* Mic Orb */
-    .mic-orb {
-      width: 68px; height: 68px; border-radius: 50%;
-      background: var(--surface-2); border: 2.5px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; cursor: pointer;
-      transition: all .25s; flex-shrink: 0; position: relative;
-      user-select: none;
+    /* Avatar + ripple rings */
+    .vc-avatar-section {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      width: 210px; height: 210px; margin-bottom: 10px; flex-shrink: 0;
     }
-    .mic-orb:hover { border-color: var(--primary); background: rgba(99,102,241,.08); }
+    .vc-avatar {
+      width: 96px; height: 96px; border-radius: 50%; position: relative; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      transition: box-shadow .4s; user-select: none;
+    }
+    .vc-ring {
+      position: absolute; border-radius: 50%; border: 1.5px solid rgba(99,102,241,.18);
+      left: 50%; top: 50%; pointer-events: none;
+    }
+    .vc-ring.r1 { width: 124px; height: 124px; transform: translate(-50%,-50%); }
+    .vc-ring.r2 { width: 158px; height: 158px; transform: translate(-50%,-50%); }
+    .vc-ring.r3 { width: 196px; height: 196px; transform: translate(-50%,-50%); }
+
+    /* Speaking — purple ripple */
+    .voice-panel.vc-speaking .vc-ring.r1 { animation: vcRipple 2.4s ease-out infinite 0s; }
+    .voice-panel.vc-speaking .vc-ring.r2 { animation: vcRipple 2.4s ease-out infinite .6s; }
+    .voice-panel.vc-speaking .vc-ring.r3 { animation: vcRipple 2.4s ease-out infinite 1.2s; }
+    @keyframes vcRipple {
+      0%   { border-color: rgba(99,102,241,.65); transform: translate(-50%,-50%) scale(1);    opacity: .8; }
+      100% { border-color: rgba(99,102,241,0);   transform: translate(-50%,-50%) scale(1.65); opacity: 0; }
+    }
+    /* Listening — green ripple */
+    .voice-panel.vc-listening .vc-ring.r1 { animation: vcRippleG 2s ease-out infinite 0s; }
+    .voice-panel.vc-listening .vc-ring.r2 { animation: vcRippleG 2s ease-out infinite .5s; }
+    .voice-panel.vc-listening .vc-ring.r3 { animation: vcRippleG 2s ease-out infinite 1s; }
+    @keyframes vcRippleG {
+      0%   { border-color: rgba(52,211,153,.65); transform: translate(-50%,-50%) scale(1);    opacity: .7; }
+      100% { border-color: rgba(52,211,153,0);   transform: translate(-50%,-50%) scale(1.6);  opacity: 0; }
+    }
+    /* Processing — avatar amber pulse */
+    .voice-panel.vc-processing .vc-avatar { animation: vcAvatarAmber 1s ease-in-out infinite; }
+    @keyframes vcAvatarAmber {
+      0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.4); }
+      50%     { box-shadow: 0 0 0 20px rgba(245,158,11,0); }
+    }
+    /* Glow by state */
+    .voice-panel.vc-speaking  .vc-avatar { box-shadow: 0 0 48px rgba(99,102,241,.5), 0 0 0 3px rgba(99,102,241,.3); }
+    .voice-panel.vc-listening .vc-avatar { box-shadow: 0 0 48px rgba(52,211,153,.45), 0 0 0 3px rgba(52,211,153,.3); }
+
+    /* Identity */
+    .vc-identity { text-align: center; margin-bottom: 14px; }
+    .vc-ai-name  { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -.3px; margin-bottom: 4px; }
+    .vc-ai-role  { font-size: 13px; color: rgba(255,255,255,.38); font-weight: 400; }
+
+    /* Status */
+    .vc-status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; height: 22px; }
+    .voice-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,.2); flex-shrink: 0; transition: background .3s;
+    }
+    .voice-status-dot.listening  { background: #34d399; animation: blink 1s ease infinite; }
+    .voice-status-dot.processing { background: #f59e0b; }
+    .voice-status-dot.speaking   { background: #818cf8; animation: blink 1.5s ease infinite; }
+    #v-status-text { font-size: 13px; color: rgba(255,255,255,.45); font-weight: 500; }
+
+    /* Transcript */
+    .vc-transcript {
+      font-size: 15px; color: rgba(255,255,255,.7); text-align: center; line-height: 1.5;
+      min-height: 24px; max-width: 500px; padding: 0 24px; margin-bottom: 6px;
+    }
+    .vc-transcript .vt-interim { color: rgba(255,255,255,.3); font-style: italic; }
+    .vc-transcript .vt-final   { color: #fff; font-style: normal; font-weight: 600; }
+    .voice-confidence { font-size: 11px; color: rgba(255,255,255,.22); margin-bottom: 18px; min-height: 16px; }
+
+    /* Waveform canvas */
+    .vc-wave-wrap { width: 320px; max-width: 88vw; margin-bottom: 28px; }
+    #voice-waveform { width: 100%; height: 40px; border-radius: 8px; background: rgba(255,255,255,.04); display: block; }
+
+    /* Actions row: [secondary] [BIG MIC] [secondary] */
+    .vc-actions { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 26px; }
+
+    /* Big mic orb */
+    .mic-orb {
+      width: 78px; height: 78px; border-radius: 50%;
+      background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.14);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; cursor: pointer; transition: all .3s; flex-shrink: 0;
+      position: relative; user-select: none; box-shadow: 0 6px 28px rgba(0,0,0,.5);
+    }
+    .mic-orb:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); }
     .mic-orb.listening {
-      background: rgba(16,185,129,.15); border-color: #34d399;
+      background: rgba(16,185,129,.2); border-color: #34d399;
       animation: orbPulseGreen 1.6s ease infinite;
     }
     .mic-orb.processing {
-      background: rgba(245,158,11,.15); border-color: var(--warning);
-      animation: orbSpin .8s linear infinite;
+      background: rgba(245,158,11,.18); border-color: #f59e0b;
+      animation: orbSpin .9s linear infinite;
     }
     .mic-orb.speaking {
-      background: rgba(99,102,241,.18); border-color: var(--primary);
+      background: rgba(99,102,241,.2); border-color: #818cf8;
       animation: orbPulsePurple 1.2s ease infinite;
     }
-    @keyframes orbPulseGreen {
-      0%,100%{ box-shadow: 0 0 0 0 rgba(52,211,153,.5); }
-      50%    { box-shadow: 0 0 0 14px rgba(52,211,153,0); }
+    @keyframes orbPulseGreen  {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(52,211,153,.5), 0 6px 28px rgba(0,0,0,.5); }
+      50%    { box-shadow: 0 0 0 20px rgba(52,211,153,0), 0 6px 28px rgba(0,0,0,.5); }
     }
     @keyframes orbPulsePurple {
-      0%,100%{ box-shadow: 0 0 0 0 rgba(99,102,241,.5); }
-      50%    { box-shadow: 0 0 0 12px rgba(99,102,241,0); }
+      0%,100%{ box-shadow: 0 0 0 0 rgba(99,102,241,.5), 0 6px 28px rgba(0,0,0,.5); }
+      50%    { box-shadow: 0 0 0 18px rgba(99,102,241,0), 0 6px 28px rgba(0,0,0,.5); }
     }
-    @keyframes orbSpin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes orbSpin { to { transform: rotate(360deg); } }
 
-    /* Status row */
-    .voice-status-section {
-      display: flex; align-items: center; gap: 16px;
-      padding: 14px 18px 10px;
-    }
-    .voice-info { flex: 1; min-width: 0; }
-    .voice-status-label {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 13px; font-weight: 600; color: var(--text);
-      margin-bottom: 5px;
-    }
-    .voice-status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--text-3); flex-shrink: 0; transition: background .3s;
-    }
-    .voice-status-dot.listening { background: #34d399; animation: blink 1s ease infinite; }
-    .voice-status-dot.processing { background: var(--warning); }
-    .voice-status-dot.speaking   { background: var(--primary); animation: blink 1.5s ease infinite; }
-
-    .voice-transcript {
-      font-size: 13px; color: var(--text-2); min-height: 20px; line-height: 1.5;
-    }
-    .voice-transcript .vt-interim { color: var(--text-3); font-style: italic; }
-    .voice-transcript .vt-final   { color: var(--text); font-style: normal; font-weight: 500; }
-    .voice-confidence {
-      font-size: 11px; color: var(--text-3); margin-top: 3px;
-    }
-
-    /* Waveform */
-    .waveform-wrap {
-      padding: 0 18px 10px;
-    }
-    #voice-waveform {
-      width: 100%; height: 48px; border-radius: var(--radius-sm);
-      background: var(--surface-2); display: block;
-    }
-
-    /* Controls */
-    .voice-controls {
-      padding: 10px 18px 14px;
-      border-top: 1px solid var(--border);
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .voice-ctrl-row {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    }
-    .v-select {
-      flex: 1; min-width: 180px;
-      padding: 6px 10px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface-2); color: var(--text); font-size: 12px;
-      cursor: pointer; transition: border-color .2s;
-    }
-    .v-select:focus { outline: none; border-color: var(--primary); }
-    .v-auto-speak {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none;
-      white-space: nowrap;
-    }
-    .v-auto-speak input { accent-color: var(--primary); cursor: pointer; }
-
-    /* Sliders */
-    .vslider-group {
-      display: flex; align-items: center; gap: 7px; flex: 1; min-width: 120px;
-    }
-    .vslider-lbl {
-      font-size: 11px; color: var(--text-3); font-weight: 500;
-      white-space: nowrap; width: 48px; flex-shrink: 0;
-    }
-    .vslider {
-      flex: 1; height: 3px; border-radius: 99px;
-      background: var(--surface-3); outline: none;
-      -webkit-appearance: none; appearance: none; cursor: pointer;
-    }
-    .vslider::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 14px; height: 14px;
-      border-radius: 50%; background: var(--primary); cursor: pointer;
-    }
-    .vslider::-moz-range-thumb {
-      width: 14px; height: 14px; border: none;
-      border-radius: 50%; background: var(--primary); cursor: pointer;
-    }
-    .vslider-val {
-      font-size: 11px; color: var(--text-2); width: 30px; text-align: right; flex-shrink: 0;
-    }
-
-    /* Voice action buttons */
-    .voice-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    /* Secondary action pills */
     .btn-v {
-      display: flex; align-items: center; gap: 5px;
-      padding: 6px 12px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface-2); color: var(--text);
-      font-size: 12px; font-weight: 500;
-      transition: all .2s; white-space: nowrap; cursor: pointer;
+      display: flex; align-items: center; gap: 5px; padding: 8px 18px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.1); border-radius: 99px;
+      background: rgba(255,255,255,.05); color: rgba(255,255,255,.6);
+      font-size: 12px; font-weight: 500; transition: all .2s; white-space: nowrap;
     }
-    .btn-v:hover { background: var(--surface-3); border-color: var(--primary); color: var(--primary); }
-    .btn-v.v-listen { background: rgba(16,185,129,.12); border-color: #34d399; color: #34d399; }
-    .btn-v.v-muted  { background: rgba(239,68,68,.1);  border-color: var(--danger); color: var(--danger); }
-    .btn-v.v-danger:hover { background: rgba(239,68,68,.1); border-color: var(--danger); color: var(--danger); }
+    .btn-v:hover { background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.22); color: #fff; }
+    .btn-v.v-listen  { background: rgba(16,185,129,.15); border-color: #34d399; color: #34d399; }
+    .btn-v.v-muted   { background: rgba(239,68,68,.12);  border-color: #ef4444; color: #ef4444; }
+    .btn-v.v-danger:hover { background: rgba(239,68,68,.12); border-color: #ef4444; color: #ef4444; }
 
-    /* Continuous mode toggle */
-    .v-continuous {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 12px; color: var(--text-2);
-      cursor: pointer; user-select: none; margin-left: auto; white-space: nowrap;
+    /* Settings row */
+    .vc-settings {
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center;
+      padding: 12px 22px; border-radius: 14px;
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.055);
+      width: 540px; max-width: 94vw;
     }
-    .v-toggle {
-      width: 36px; height: 20px;
-      background: var(--surface-3); border-radius: 99px;
-      position: relative; transition: background .25s; flex-shrink: 0;
+    .vslider-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 110px; }
+    .vslider-lbl { font-size: 11px; color: rgba(255,255,255,.3); font-weight: 500; white-space: nowrap; width: 44px; flex-shrink: 0; }
+    .vslider {
+      flex: 1; height: 3px; border-radius: 99px; background: rgba(255,255,255,.1);
+      outline: none; -webkit-appearance: none; appearance: none; cursor: pointer;
     }
-    .v-toggle.on { background: var(--success); }
-    .v-toggle::after {
-      content: ''; position: absolute;
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #fff; top: 3px; left: 3px; transition: left .25s;
+    .vslider::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #818cf8; cursor: pointer; }
+    .vslider::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #818cf8; cursor: pointer; }
+    .vslider-val { font-size: 11px; color: rgba(255,255,255,.4); width: 30px; text-align: right; flex-shrink: 0; }
+    .v-select {
+      background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+      color: rgba(255,255,255,.75); font-size: 12px; padding: 5px 8px;
+      border-radius: 8px; cursor: pointer; outline: none;
     }
+    .v-select:focus { border-color: #818cf8; }
+    .v-select option { background: #1a1f2e; color: #e2e8f0; }
+    .v-auto-speak { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,.45); cursor: pointer; user-select: none; }
+    .v-auto-speak input { accent-color: #818cf8; cursor: pointer; }
+    .v-continuous { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,.45); cursor: pointer; user-select: none; white-space: nowrap; }
+    .v-toggle { width: 34px; height: 18px; background: rgba(255,255,255,.1); border-radius: 99px; position: relative; transition: background .25s; flex-shrink: 0; }
+    .v-toggle.on { background: #34d399; }
+    .v-toggle::after { content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: left .25s; }
     .v-toggle.on::after { left: 19px; }
 
-    /* Mic toggle button in input bar */
+    /* Keyboard hints */
+    .voice-kbd-hints { font-size: 10px; color: rgba(255,255,255,.2); display: flex; gap: 10px; flex-wrap: wrap; }
+    .kbd { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 3px; padding: 1px 5px; font-family: monospace; }
+
+    /* Input bar mic button */
     .btn-mic {
-      width: 44px; height: 44px;
-      border: 1.5px solid var(--border); background: var(--surface-2);
-      border-radius: var(--radius); display: flex; align-items: center;
-      justify-content: center; font-size: 18px; cursor: pointer;
-      transition: all .2s; flex-shrink: 0; position: relative;
+      width: 44px; height: 44px; border: 1.5px solid var(--border); background: var(--surface-2);
+      border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
+      font-size: 18px; cursor: pointer; transition: all .2s; flex-shrink: 0; position: relative;
     }
     .btn-mic:hover { background: var(--surface-3); border-color: var(--primary); }
-    .btn-mic.mic-open {
-      background: rgba(99,102,241,.15); border-color: var(--primary); color: var(--primary);
+    .btn-mic.mic-open { background: rgba(99,102,241,.15); border-color: var(--primary); color: var(--primary); }
+    .btn-mic.mic-listening { background: rgba(16,185,129,.15); border-color: #34d399; animation: orbPulseGreenLight 1.6s ease infinite; }
+    @keyframes orbPulseGreenLight {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(52,211,153,.45); }
+      50%    { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
     }
-    .btn-mic.mic-listening {
-      background: rgba(16,185,129,.15); border-color: #34d399;
-      animation: orbPulseGreen 1.6s ease infinite;
-    }
-    .mic-dot {
-      position: absolute; top: -3px; right: -3px;
-      width: 9px; height: 9px; border-radius: 50%;
-      background: #34d399; border: 2px solid var(--surface); display: none;
-    }
-    .btn-mic.mic-listening .mic-dot,
-    .btn-mic.mic-open .mic-dot { display: block; }
+    .mic-dot { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #34d399; border: 2px solid var(--surface); display: none; }
+    .btn-mic.mic-listening .mic-dot, .btn-mic.mic-open .mic-dot { display: block; }
 
-    /* Keyboard shortcut hints */
-    .voice-kbd-hints {
-      font-size: 10px; color: var(--text-3);
-      display: flex; gap: 10px; flex-wrap: wrap;
-    }
-    .kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: monospace; }
-
-    /* Mobile */
     @media (max-width: 700px) {
-      .voice-status-section { padding: 10px 14px 8px; gap: 12px; }
-      .mic-orb { width: 52px; height: 52px; font-size: 22px; }
-      .waveform-wrap { padding: 0 14px 8px; }
-      .voice-controls { padding: 8px 14px 12px; }
-      .btn-v { padding: 5px 9px; font-size: 11px; }
-      .vslider-group { min-width: 100px; }
+      .vc-avatar { width: 78px; height: 78px; font-size: 28px; }
+      .vc-avatar-section { width: 170px; height: 170px; }
+      .vc-ring.r1 { width: 100px; height: 100px; }
+      .vc-ring.r2 { width: 130px; height: 130px; }
+      .vc-ring.r3 { width: 163px; height: 163px; }
+      .vc-ai-name { font-size: 18px; }
+      .mic-orb { width: 64px; height: 64px; font-size: 25px; }
+      .vc-wave-wrap { width: 280px; }
+      .vc-settings { width: 96vw; padding: 10px 14px; gap: 12px; }
+      .btn-v { padding: 7px 13px; font-size: 11px; }
     }
   </style>
 </head>
@@ -1644,104 +1643,111 @@
     </div>
 
     <!-- ============================================================
-         VOICE PANEL (hidden by default, toggled by mic button)
+         VOICE CALL OVERLAY (fixed full-screen, toggled by mic button)
     ============================================================ -->
     <div id="voice-panel" class="voice-panel" style="display:none">
 
-      <!-- Header -->
-      <div class="voice-panel-header">
-        <div class="voice-panel-title">
-          🎙️ Voice Interface
-          <span class="voice-live-badge" id="voice-live-badge">● LIVE</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <!-- Continuous mode toggle -->
-          <label class="v-continuous" id="v-continuous-label" title="Continuous mode: voice loops automatically (C)">
+      <!-- Top bar -->
+      <div class="vc-topbar">
+        <span class="voice-live-badge" id="voice-live-badge">● LIVE</span>
+        <span class="vc-topbar-title">Voice Call</span>
+        <div class="vc-topbar-right">
+          <label class="v-auto-speak" title="Auto-speak AI responses">
+            <input type="checkbox" id="v-auto-speak" checked>
+            Auto-speak
+          </label>
+          <label class="v-continuous" id="v-continuous-label" title="Continuous mode (C)">
             <span>Continuous</span>
             <div class="v-toggle" id="v-continuous-sw"></div>
           </label>
-          <button id="btn-close-voice" class="btn-icon" style="width:26px;height:26px;font-size:13px" title="Close voice panel">✕</button>
+          <button id="btn-close-voice" style="width:30px;height:30px;font-size:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .2s" title="End voice call" onmouseover="this.style.background='rgba(239,68,68,.18)';this.style.color='#ef4444'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.color='rgba(255,255,255,.5)'">✕</button>
         </div>
       </div>
 
-      <!-- Status orb + info -->
-      <div class="voice-status-section">
-        <button class="mic-orb" id="mic-orb" title="Click to start/stop listening">🎤</button>
-        <div class="voice-info">
-          <div class="voice-status-label">
-            <div class="voice-status-dot" id="v-status-dot"></div>
-            <span id="v-status-text">Ready</span>
-          </div>
-          <div class="voice-transcript" id="v-transcript">
-            <span class="vt-interim">Click the mic or press Space to start…</span>
-          </div>
-          <div class="voice-confidence" id="v-confidence"></div>
-        </div>
+      <!-- Avatar with ripple rings -->
+      <div class="vc-avatar-section">
+        <div class="vc-ring r1"></div>
+        <div class="vc-ring r2"></div>
+        <div class="vc-ring r3"></div>
+        <div class="vc-avatar" id="vc-call-avatar">?</div>
       </div>
+
+      <!-- AI identity -->
+      <div class="vc-identity">
+        <div class="vc-ai-name" id="vc-call-name">AI Employee</div>
+        <div class="vc-ai-role" id="vc-call-role">Assistant</div>
+      </div>
+
+      <!-- Status -->
+      <div class="vc-status-row">
+        <div class="voice-status-dot" id="v-status-dot"></div>
+        <span id="v-status-text">Ready</span>
+      </div>
+
+      <!-- Transcript -->
+      <div class="vc-transcript" id="v-transcript">
+        <span class="vt-interim">Press Space or tap the mic to start…</span>
+      </div>
+      <div class="voice-confidence" id="v-confidence"></div>
 
       <!-- Waveform canvas -->
-      <div class="waveform-wrap">
-        <canvas id="voice-waveform" height="48"></canvas>
+      <div class="vc-wave-wrap">
+        <canvas id="voice-waveform" height="40"></canvas>
       </div>
 
-      <!-- Controls -->
-      <div class="voice-controls">
-
-        <!-- Row 1: Voice selector + auto-speak -->
-        <div class="voice-ctrl-row">
-          <select id="v-voice-sel" class="v-select" title="Select AI voice (OpenAI TTS-HD)">
-            <option value="nova">Nova — Warm &amp; natural</option>
-            <option value="shimmer">Shimmer — Clear &amp; expressive</option>
-            <option value="alloy">Alloy — Neutral &amp; versatile</option>
-            <option value="echo">Echo — Crisp &amp; clear (male)</option>
-            <option value="onyx">Onyx — Deep &amp; confident (male)</option>
-            <option value="fable">Fable — British accent</option>
-          </select>
-          <label class="v-auto-speak" title="Automatically speak AI responses">
-            <input type="checkbox" id="v-auto-speak" checked>
-            Auto-speak responses
-          </label>
-        </div>
-
-        <!-- Row 2: Sliders -->
-        <div class="voice-ctrl-row">
-          <div class="vslider-group">
-            <span class="vslider-lbl">Speed</span>
-            <input type="range" class="vslider" id="v-speed" min="0.5" max="2" step="0.1" value="1">
-            <span class="vslider-val" id="v-speed-val">1.0×</span>
-          </div>
-          <div class="vslider-group" style="gap:6px;align-items:center;padding:0 4px">
-            <input type="range" id="v-pitch" value="1" style="display:none">
-            <span id="v-pitch-val" style="display:none">1.0</span>
-            <span style="font-size:16px;line-height:1">✨</span>
-            <div style="display:flex;flex-direction:column;gap:1px">
-              <span style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:.3px">OpenAI TTS-HD</span>
-              <span style="font-size:10px;color:var(--text-3)">Neural AI voice</span>
-            </div>
-          </div>
-          <div class="vslider-group">
-            <span class="vslider-lbl">Volume</span>
-            <input type="range" class="vslider" id="v-volume" min="0" max="1" step="0.05" value="0.9">
-            <span class="vslider-val" id="v-volume-val">0.90</span>
-          </div>
-        </div>
-
-        <!-- Row 3: Action buttons -->
-        <div class="voice-actions">
-          <button class="btn-v" id="btn-v-listen" title="Start / stop listening (Space)">🎤 Listen</button>
-          <button class="btn-v" id="btn-v-mute"   title="Toggle mute (M)">🎙️ Mute</button>
-          <button class="btn-v" id="btn-v-stop-tts"   title="Stop speaking (S)">⏹ Stop Speech</button>
-          <button class="btn-v" id="btn-v-pause-tts"  title="Pause / resume speaking">⏸ Pause</button>
-          <button class="btn-v v-danger" id="btn-v-stop-all" title="Stop everything">✕ Stop All</button>
-          <div class="voice-kbd-hints" style="margin-left:auto">
-            <span><span class="kbd">Space</span> mic</span>
-            <span><span class="kbd">M</span> mute</span>
-            <span><span class="kbd">C</span> continuous</span>
-            <span><span class="kbd">S</span> stop speech</span>
-          </div>
-        </div>
-
+      <!-- Main actions: Mute | BIG MIC | Stop -->
+      <div class="vc-actions">
+        <button class="btn-v" id="btn-v-mute" title="Toggle mute (M)">🎙️ Mute</button>
+        <button class="mic-orb" id="mic-orb" title="Start / stop listening (Space)">🎤
+          <div class="mic-dot"></div>
+        </button>
+        <button class="btn-v" id="btn-v-stop-tts" title="Stop speaking (S)">⏹ Stop</button>
       </div>
+
+      <!-- Settings row -->
+      <div class="vc-settings">
+        <div class="vslider-group">
+          <span class="vslider-lbl">Speed</span>
+          <input type="range" class="vslider" id="v-speed" min="0.5" max="2" step="0.1" value="1">
+          <span class="vslider-val" id="v-speed-val">1.0×</span>
+        </div>
+        <div class="vslider-group" style="gap:6px;align-items:center;flex:0 0 auto">
+          <input type="range" id="v-pitch" value="1" style="display:none">
+          <span id="v-pitch-val" style="display:none">1.0</span>
+          <span style="font-size:15px">✨</span>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#818cf8;letter-spacing:.2px">OpenAI TTS-HD</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.28)">Neural AI voice</div>
+          </div>
+        </div>
+        <div class="vslider-group">
+          <span class="vslider-lbl">Volume</span>
+          <input type="range" class="vslider" id="v-volume" min="0" max="1" step="0.05" value="0.9">
+          <span class="vslider-val" id="v-volume-val">0.90</span>
+        </div>
+        <select id="v-voice-sel" class="v-select" title="Select AI voice">
+          <option value="nova">Nova — Warm &amp; natural</option>
+          <option value="shimmer">Shimmer — Expressive</option>
+          <option value="alloy">Alloy — Neutral</option>
+          <option value="echo">Echo — Crisp (male)</option>
+          <option value="onyx">Onyx — Deep (male)</option>
+          <option value="fable">Fable — British</option>
+        </select>
+        <div class="voice-kbd-hints">
+          <span><span class="kbd">Space</span> mic</span>
+          <span><span class="kbd">M</span> mute</span>
+          <span><span class="kbd">C</span> loop</span>
+          <span><span class="kbd">S</span> stop</span>
+        </div>
+      </div>
+
+      <!-- Hidden utility buttons (JS wiring kept) -->
+      <div style="display:none">
+        <button id="btn-v-listen">Listen</button>
+        <button id="btn-v-pause-tts">⏸ Pause</button>
+        <button id="btn-v-stop-all">Stop All</button>
+      </div>
+
     </div>
     <!-- /voice-panel -->
 
@@ -2147,8 +2153,9 @@ function updateCtxBanner() {
   } else {
     banner.style.display = 'none';
   }
-  // Refresh AI presence card whenever context changes
+  // Refresh AI presence card and voice overlay whenever context changes
   updateAIPresence('');
+  vsUpdateVoiceIdentity();
 }
 
 // Init context bar on load
@@ -3535,7 +3542,9 @@ function vsSetStatus(type, text) {
   vsStatusDot.className = 'voice-status-dot' + (type ? ' ' + type : '');
   vsStatusText.textContent = text;
   vsMicOrb.className = 'mic-orb' + (type ? ' ' + type : '');
-  // Sync mic toggle button
+  // State class on voice overlay drives CSS ring / glow animations
+  vsPanel.className = 'voice-panel' + (type ? ' vc-' + type : '');
+  // Sync mic toggle button in input bar
   if (type === 'listening') {
     vsBtnMicToggle.classList.add('mic-listening');
     vsBtnMicToggle.classList.remove('mic-open');
@@ -3547,6 +3556,25 @@ function vsSetStatus(type, text) {
   updateAIPresence(type);
 }
 
+function vsUpdateVoiceIdentity() {
+  const avatarEl = document.getElementById('vc-call-avatar');
+  const nameEl   = document.getElementById('vc-call-name');
+  const roleEl   = document.getElementById('vc-call-role');
+  if (!avatarEl || !nameEl || !roleEl) return;
+  if (ctx.agentId) {
+    const c = getAvatarColor(ctx.agentId);
+    avatarEl.textContent = getAvatarInitial(ctx.agentName || 'A');
+    avatarEl.style.background = `linear-gradient(135deg, ${c}, ${c}cc)`;
+    nameEl.textContent = ctx.agentName || 'AI Employee';
+    roleEl.textContent = [ctx.agentRole, ctx.orgName].filter(Boolean).join(' · ') || 'AI Assistant';
+  } else {
+    avatarEl.textContent = '🤖';
+    avatarEl.style.background = 'linear-gradient(135deg, #6366f1, #4f46e5)';
+    nameEl.textContent = 'AI Employee';
+    roleEl.textContent = 'No agent selected';
+  }
+}
+
 function vsSetTranscript(text, cls) {
   vsTranscript.innerHTML = `<span class="${cls}">${escapeHtml(text)}</span>`;
 }
@@ -3554,7 +3582,8 @@ function vsSetTranscript(text, cls) {
 // ── Open / Close panel ────────────────────────────────────────
 function vsOpenPanel() {
   voicePanelOpen = true;
-  vsPanel.style.display = 'block';
+  vsPanel.style.display = 'flex';
+  vsUpdateVoiceIdentity();
   vsBtnMicToggle.classList.add('mic-open');
   vsBtnMicToggle.title = 'Close voice panel';
 
