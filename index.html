@@ -1689,7 +1689,14 @@
 
         <!-- Row 1: Voice selector + auto-speak -->
         <div class="voice-ctrl-row">
-          <select id="v-voice-sel" class="v-select" title="Select TTS voice"></select>
+          <select id="v-voice-sel" class="v-select" title="Select AI voice (OpenAI TTS-HD)">
+            <option value="nova">Nova — Warm &amp; natural</option>
+            <option value="shimmer">Shimmer — Clear &amp; expressive</option>
+            <option value="alloy">Alloy — Neutral &amp; versatile</option>
+            <option value="echo">Echo — Crisp &amp; clear (male)</option>
+            <option value="onyx">Onyx — Deep &amp; confident (male)</option>
+            <option value="fable">Fable — British accent</option>
+          </select>
           <label class="v-auto-speak" title="Automatically speak AI responses">
             <input type="checkbox" id="v-auto-speak" checked>
             Auto-speak responses
@@ -1703,10 +1710,14 @@
             <input type="range" class="vslider" id="v-speed" min="0.5" max="2" step="0.1" value="1">
             <span class="vslider-val" id="v-speed-val">1.0×</span>
           </div>
-          <div class="vslider-group">
-            <span class="vslider-lbl">Pitch</span>
-            <input type="range" class="vslider" id="v-pitch" min="0.5" max="2" step="0.1" value="1">
-            <span class="vslider-val" id="v-pitch-val">1.0</span>
+          <div class="vslider-group" style="gap:6px;align-items:center;padding:0 4px">
+            <input type="range" id="v-pitch" value="1" style="display:none">
+            <span id="v-pitch-val" style="display:none">1.0</span>
+            <span style="font-size:16px;line-height:1">✨</span>
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <span style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:.3px">OpenAI TTS-HD</span>
+              <span style="font-size:10px;color:var(--text-3)">Neural AI voice</span>
+            </div>
           </div>
           <div class="vslider-group">
             <span class="vslider-lbl">Volume</span>
@@ -2864,7 +2875,7 @@ document.getElementById('btn-create-user-tab').addEventListener('click', async (
 
 // ── Persisted settings ──────────────────────────────────────
 const VS_KEY = 'supernal_voice_v2';
-const VS_DEFAULTS = { voiceURI: '', rate: 1.0, pitch: 1.0, volume: 0.9,
+const VS_DEFAULTS = { voiceURI: 'nova', rate: 1.0, pitch: 1.0, volume: 0.9,
                       continuous: false, autoSpeak: true };
 let vsSettings = { ...VS_DEFAULTS, ...JSON.parse(localStorage.getItem(VS_KEY) || '{}') };
 function vsSave() {
@@ -3116,62 +3127,33 @@ async function vsFinalTranscript(text) {
   }
 }
 
-// ── Speech Synthesis ──────────────────────────────────────────
-let vsCurrentUtterance = null;
-let vsTTSVoices = [];
-
-function vsLoadVoices() {
-  vsTTSVoices = window.speechSynthesis.getVoices();
-  if (vsTTSVoices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      vsTTSVoices = window.speechSynthesis.getVoices();
-      vsPopulateVoices();
-    };
-  } else {
-    vsPopulateVoices();
-  }
-}
+// ── OpenAI TTS (tts-1-hd — natural AI voice) ──────────────────
+let vsCurrentAudio  = null;   // HTMLAudioElement for TTS playback
+let vsTTSAudioCtx   = null;   // AudioContext for TTS waveform
+let vsTTSAnalyser   = null;   // AnalyserNode connected to TTS audio
+let vsTTSBlobURL    = null;   // object URL to revoke on cleanup
 
 function vsPopulateVoices() {
-  if (!vsVoiceSel) return;
-  vsVoiceSel.innerHTML = '';
-  // Sort: Google first, then by language
-  const sorted = [...vsTTSVoices].sort((a, b) => {
-    const aG = a.name.toLowerCase().includes('google') ? 0 : 1;
-    const bG = b.name.toLowerCase().includes('google') ? 0 : 1;
-    if (aG !== bG) return aG - bG;
-    return a.name.localeCompare(b.name);
-  });
-  sorted.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.voiceURI;
-    opt.textContent = `${v.name} (${v.lang})`;
-    if (v.voiceURI === vsSettings.voiceURI) opt.selected = true;
-    vsVoiceSel.appendChild(opt);
-  });
-  // Default to Google US English if nothing saved
-  if (!vsSettings.voiceURI) {
-    const pref = vsTTSVoices.find(v =>
-      v.name === 'Google US English' ||
-      (v.name.toLowerCase().includes('google') && v.lang.startsWith('en'))
-    ) || vsTTSVoices.find(v => v.lang.startsWith('en'));
-    if (pref) vsVoiceSel.value = pref.voiceURI;
+  // Voice options are static HTML; just restore saved selection
+  if (vsVoiceSel && vsSettings.voiceURI) {
+    vsVoiceSel.value = vsSettings.voiceURI;
   }
 }
 
-function vsGetVoice() {
-  const uri = vsVoiceSel ? vsVoiceSel.value : '';
-  return vsTTSVoices.find(v => v.voiceURI === uri) || vsTTSVoices[0] || null;
+function vsGetVoiceName() {
+  return (vsVoiceSel ? vsVoiceSel.value : '') || 'nova';
 }
 
-function voiceSpeakResponse(text) {
-  if (!window.speechSynthesis) {
-    vsResumeLoop();
-    return;
-  }
-  // Cancel any in-flight speech
-  window.speechSynthesis.cancel();
-  vsSynthPaused = false;
+function vsCleanupTTS() {
+  if (vsTTSAudioCtx) { vsTTSAudioCtx.close().catch(() => {}); vsTTSAudioCtx = null; }
+  vsTTSAnalyser = null;
+  if (vsTTSBlobURL) { URL.revokeObjectURL(vsTTSBlobURL); vsTTSBlobURL = null; }
+  vsCurrentAudio = null;
+}
+
+async function voiceSpeakResponse(text) {
+  // Stop any current audio
+  voiceStopSpeaking();
 
   // Strip markdown for natural speech
   const clean = text
@@ -3187,48 +3169,88 @@ function voiceSpeakResponse(text) {
 
   if (!clean) { vsResumeLoop(); return; }
 
-  vsCurrentUtterance = new SpeechSynthesisUtterance(clean);
-  vsCurrentUtterance.voice  = vsGetVoice();
-  vsCurrentUtterance.rate   = parseFloat(vsSpeedSlider ? vsSpeedSlider.value : 1);
-  vsCurrentUtterance.pitch  = parseFloat(vsPitchSlider ? vsPitchSlider.value : 1);
-  vsCurrentUtterance.volume = parseFloat(vsVolumeSlider ? vsVolumeSlider.value : 0.9);
+  // Signal speaking state immediately (shows processing while fetching)
+  vsSpeaking = true;
+  vsSetStatus('speaking', '⏳ Generating voice…');
+  vsLiveBadge.classList.add('show');
+  vsMicOrb.textContent = '🔊';
+  setCurrentlySpeakingBubble(true);
 
-  vsCurrentUtterance.onstart = () => {
-    vsSpeaking = true;
-    vsSetStatus('speaking', '🔵 AI Speaking…');
-    vsLiveBadge.classList.add('show');
-    vsMicOrb.textContent = '🔊';
-    vsSpkVisuStart();
-    setCurrentlySpeakingBubble(true);
-  };
+  try {
+    const fd = new FormData();
+    fd.append('text',  clean.slice(0, 4096));
+    fd.append('voice', vsGetVoiceName());
+    fd.append('speed', vsSpeedSlider ? vsSpeedSlider.value : '1.0');
 
-  vsCurrentUtterance.onend = () => {
-    vsSpeaking = false;
-    vsSpkVisuStop();
-    vsLiveBadge.classList.remove('show');
-    vsMicOrb.textContent = '🎤';
-    setCurrentlySpeakingBubble(false);
-    vsSetStatus('', 'Response complete');
-    vsResumeLoop();
-  };
+    const resp = await fetch(`${API}/api/tts`, { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error(`TTS ${resp.status}`);
 
-  vsCurrentUtterance.onerror = (e) => {
-    vsSpeaking = false;
-    vsSpkVisuStop();
-    vsLiveBadge.classList.remove('show');
-    vsMicOrb.textContent = '🎤';
-    setCurrentlySpeakingBubble(false);
-    if (e.error !== 'interrupted' && e.error !== 'canceled') {
-      vsSetStatus('', `TTS error: ${e.error}`);
+    const blob = await resp.blob();
+    vsTTSBlobURL = URL.createObjectURL(blob);
+
+    vsCurrentAudio = new Audio(vsTTSBlobURL);
+    vsCurrentAudio.volume = parseFloat(vsVolumeSlider ? vsVolumeSlider.value : 0.9);
+
+    // Connect to Web Audio API for real waveform visualization
+    try {
+      vsTTSAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = vsTTSAudioCtx.createMediaElementSource(vsCurrentAudio);
+      vsTTSAnalyser = vsTTSAudioCtx.createAnalyser();
+      vsTTSAnalyser.fftSize = 256;
+      src.connect(vsTTSAnalyser);
+      vsTTSAnalyser.connect(vsTTSAudioCtx.destination);
+    } catch {
+      // AudioContext unavailable — still plays audio, just no live waveform
     }
-    vsResumeLoop();
-  };
 
-  window.speechSynthesis.speak(vsCurrentUtterance);
+    vsSetStatus('speaking', '🔵 AI Speaking…');
+    vsSpkVisuStart();
+
+    vsCurrentAudio.onended = () => {
+      vsSpeaking    = false;
+      vsSynthPaused = false;
+      vsSpkVisuStop();
+      vsLiveBadge.classList.remove('show');
+      vsMicOrb.textContent = '🎤';
+      setCurrentlySpeakingBubble(false);
+      vsSetStatus('', 'Response complete');
+      vsCleanupTTS();
+      vsResumeLoop();
+    };
+
+    vsCurrentAudio.onerror = () => {
+      vsSpeaking    = false;
+      vsSynthPaused = false;
+      vsSpkVisuStop();
+      vsLiveBadge.classList.remove('show');
+      vsMicOrb.textContent = '🎤';
+      setCurrentlySpeakingBubble(false);
+      vsSetStatus('', 'Audio playback error');
+      vsCleanupTTS();
+      vsResumeLoop();
+    };
+
+    await vsCurrentAudio.play();
+
+  } catch (err) {
+    vsSpeaking    = false;
+    vsSynthPaused = false;
+    vsSpkVisuStop();
+    vsLiveBadge.classList.remove('show');
+    vsMicOrb.textContent = '🎤';
+    setCurrentlySpeakingBubble(false);
+    vsSetStatus('', `Voice error: ${err.message}`);
+    vsCleanupTTS();
+    vsResumeLoop();
+  }
 }
 
 function voiceStopSpeaking() {
-  window.speechSynthesis.cancel();
+  if (vsCurrentAudio) {
+    vsCurrentAudio.pause();
+    vsCurrentAudio.src = '';
+  }
+  vsCleanupTTS();
   vsSpeaking    = false;
   vsSynthPaused = false;
   vsSpkVisuStop();
@@ -3241,14 +3263,14 @@ function voiceStopSpeaking() {
 }
 
 function vsTogglePause() {
-  if (!vsSpeaking) return;
+  if (!vsSpeaking || !vsCurrentAudio) return;
   if (vsSynthPaused) {
-    window.speechSynthesis.resume();
+    vsCurrentAudio.play();
     vsSynthPaused = false;
     vsBtnPauseTTS.textContent = '⏸ Pause';
     vsSetStatus('speaking', '🔵 AI Speaking…');
   } else {
-    window.speechSynthesis.pause();
+    vsCurrentAudio.pause();
     vsSynthPaused = true;
     vsBtnPauseTTS.textContent = '▶ Resume';
     vsSetStatus('speaking', 'Paused');
@@ -3318,6 +3340,7 @@ function vsHandleCommand(text) {
 
 // ── Audio Visualization ───────────────────────────────────────
 let vsAudioCtx = null, vsAnalyser = null, vsMicSrc = null, vsMicStream = null;
+// TTS audio context lives separately — see vsTTSAudioCtx / vsTTSAnalyser (declared near voiceSpeakResponse)
 let vsWaveRAF  = null, vsSpkRAF   = null;
 
 function vsDpr() { return window.devicePixelRatio || 1; }
@@ -3397,10 +3420,34 @@ function vsMicVisuStop() {
 
 function vsSpkVisuStart() {
   vsSpkVisuStop();
-  let t = 0;
   const BAR_COUNT = 42;
-  function draw() {
-    vsSpkRAF = requestAnimationFrame(draw);
+
+  // Real waveform from OpenAI TTS audio via Web Audio API
+  if (vsTTSAnalyser) {
+    const buf = new Uint8Array(vsTTSAnalyser.frequencyBinCount);
+    function drawReal() {
+      vsSpkRAF = requestAnimationFrame(drawReal);
+      vsTTSAnalyser.getByteFrequencyData(buf);
+      const { ctx, W, H } = vsResizeCanvas();
+      const vals = Array.from({ length: BAR_COUNT }, (_, i) => {
+        const idx = Math.floor(i * buf.length / BAR_COUNT);
+        return buf[idx] / 255;
+      });
+      vsDrawBars(ctx, W, H, vals,
+        (v, i, n) => {
+          const hue = 240 + (i / n) * 60;
+          return `hsla(${hue},80%,65%,${0.4 + v * 0.6})`;
+        }
+      );
+    }
+    drawReal();
+    return;
+  }
+
+  // Fallback: synthetic wave animation (while audio is loading)
+  let t = 0;
+  function drawSynth() {
+    vsSpkRAF = requestAnimationFrame(drawSynth);
     t += 0.07;
     const { ctx, W, H } = vsResizeCanvas();
     const vals = Array.from({ length: BAR_COUNT }, (_, i) => {
@@ -3409,12 +3456,12 @@ function vsSpkVisuStart() {
     });
     vsDrawBars(ctx, W, H, vals,
       (v, i, n) => {
-        const hue = 240 + (i / n) * 60; // indigo → purple gradient
+        const hue = 240 + (i / n) * 60;
         return `hsla(${hue},80%,65%,${0.4 + v * 0.6})`;
       }
     );
   }
-  draw();
+  drawSynth();
 }
 
 function vsSpkVisuStop() {
@@ -3522,7 +3569,7 @@ function vsOpenPanel() {
   if (vsContinuous) vsContinuousSw.classList.add('on');
   else              vsContinuousSw.classList.remove('on');
 
-  vsLoadVoices();
+  vsPopulateVoices();
   vsSetStatus('', 'Ready');
   vsSetTranscript('Click the mic or press Space to start…', 'vt-interim');
   vsConfidence.textContent = '';
@@ -3643,20 +3690,6 @@ document.addEventListener('keydown', (e) => {
     voiceStopSpeaking();
   }
 });
-
-// ── Keep SpeechSynthesis alive (Chrome workaround) ────────────
-// Chrome pauses synthesis after ~15s — this heartbeat prevents that
-let vsTTSHeartbeat = null;
-function vsStartHeartbeat() {
-  if (vsTTSHeartbeat) return;
-  vsTTSHeartbeat = setInterval(() => {
-    if (vsSpeaking && !vsSynthPaused) {
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
-    }
-  }, 12000);
-}
-vsStartHeartbeat();
 
 // ── Presence card "Start Voice" button ───────────────────────
 const btnAipMic = document.getElementById('btn-aip-mic');

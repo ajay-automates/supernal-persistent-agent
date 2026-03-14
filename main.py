@@ -6,7 +6,7 @@ Supernal Persistent Agent - FastAPI Application
 import os
 import io
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pypdf import PdfReader
@@ -364,6 +364,37 @@ async def chat(
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# TTS ENDPOINT
+# ============================================================
+
+@app.post("/api/tts")
+async def text_to_speech(
+    text: str = Form(...),
+    voice: str = Form(default="nova"),
+    speed: float = Form(default=1.0)
+):
+    """High-quality TTS using OpenAI tts-1-hd model"""
+    try:
+        speed = max(0.25, min(4.0, speed))
+        if voice not in {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}:
+            voice = "nova"
+        response = client.audio.speech.create(
+            model="tts-1-hd",
+            voice=voice,
+            input=text[:4096],
+            speed=speed
+        )
+        audio_bytes = response.read()
+        return StreamingResponse(
+            iter([audio_bytes]),
+            media_type="audio/mpeg",
+            headers={"Content-Length": str(len(audio_bytes))}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
