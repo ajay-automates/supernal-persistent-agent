@@ -61,6 +61,15 @@ def _log(tool: str, params: dict, result: dict):
     logger.info("[TOOL] %s | params=%s | result_keys=%s", tool, list(params.keys()), list(result.keys()))
 
 
+def _require_verification_log(logged: bool, record_type: str):
+    """Fail tool execution if the verification record was not persisted."""
+    if not logged:
+        raise RuntimeError(
+            f"{record_type} could not be saved to the verification store. "
+            "The action was not completed."
+        )
+
+
 # ══════════════════════════════════════════════════════════════
 # AMAZON — SALES / SDR TOOLS
 # ══════════════════════════════════════════════════════════════
@@ -84,7 +93,8 @@ def send_email_tool(params: dict, organization_id: str = None, ai_employee_id: s
         db = _get_db_module()
         if db.get("log_email_sent"):
             status = "bounced" if random.random() < 0.05 else "sent"
-            db["log_email_sent"](organization_id, to, subject, body, email_id, status)
+            logged = db["log_email_sent"](organization_id, to, subject, body, email_id, status)
+            _require_verification_log(logged, "Email")
 
     # Simulate occasional bounce
     if random.random() < 0.05:
@@ -140,7 +150,8 @@ def add_lead_to_crm_tool(params: dict, organization_id: str = None, ai_employee_
     if organization_id:
         db = _get_db_module()
         if db.get("log_crm_lead"):
-            db["log_crm_lead"](organization_id, lead_id, company, contact, email, phone, stage)
+            logged = db["log_crm_lead"](organization_id, lead_id, company, contact, email, phone, stage)
+            _require_verification_log(logged, "CRM lead")
 
     result = {
         "status": "created",
@@ -188,10 +199,11 @@ def schedule_meeting_tool(params: dict, organization_id: str = None, ai_employee
     if organization_id:
         db = _get_db_module()
         if db.get("log_calendar_event"):
-            db["log_calendar_event"](
+            logged = db["log_calendar_event"](
                 organization_id, event_id, attendee, f"Discovery Call with {name}",
                 f"{date}T{time_str}", duration, f"https://zoom.us/j/{zoom_id}"
             )
+            _require_verification_log(logged, "Calendar event")
 
     result = {
         "status": "scheduled",
@@ -375,9 +387,10 @@ def create_support_ticket_tool(params: dict, organization_id: str = None, ai_emp
     if organization_id:
         db = _get_db_module()
         if db.get("log_support_ticket"):
-            db["log_support_ticket"](
+            logged = db["log_support_ticket"](
                 organization_id, ticket_id, customer_email, issue, desc, priority, "open"
             )
+            _require_verification_log(logged, "Support ticket")
 
     result = {
         "status": "created",
@@ -649,11 +662,12 @@ def order_equipment_tool(params: dict, organization_id: str = None, ai_employee_
             except:
                 unit_price_float = 0.0
 
-            db["log_equipment_order"](
+            logged = db["log_equipment_order"](
                 organization_id, order_id, equipment_str,
                 len(order_items), unit_price_float, float(total),
                 employee, estimated_delivery, "ordered"
             )
+            _require_verification_log(logged, "Equipment order")
 
     result = {
         "status": "ordered",
