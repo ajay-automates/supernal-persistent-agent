@@ -5,7 +5,9 @@ Supernal Persistent Agent - FastAPI Application
 
 import os
 import io
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+import time
+import traceback
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,7 +15,7 @@ from pypdf import PdfReader
 from openai import OpenAI
 
 from config import OPENAI_API_KEY
-from agent import answer_question
+from agent import answer_question_with_tools, stream_answer_with_tools
 from db import (
     # Organization
     create_organization, get_organization, list_organizations,
@@ -28,6 +30,12 @@ from db import (
     # Documents
     save_organization_document, save_organization_chunk,
     get_organization_documents, clear_organization_documents,
+    # Tools
+    register_tool, get_organization_tools, get_tool_execution_history,
+    # Jobs
+    get_job, list_jobs,
+    # Observability
+    log_api_call, log_error, get_org_metrics,
     # Stats & validation
     get_stats, validate_hierarchy
 )
@@ -45,6 +53,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def observability_middleware(request: Request, call_next):
+    """Track latency for every request and log to api_logs."""
+    t0 = time.time()
+    try:
+        response = await call_next(request)
+        latency_ms = int((time.time() - t0) * 1000)
+        log_api_call(
+            endpoint=request.url.path,
+            method=request.method,
+            status_code=response.status_code,
+            latency_ms=latency_ms,
+        )
+        response.headers["X-Process-Time"] = str(latency_ms)
+        return response
+    except Exception as exc:
+        latency_ms = int((time.time() - t0) * 1000)
+        log_error(
+            error_message=str(exc),
+            error_type=type(exc).__name__,
+            stack_trace=traceback.format_exc(),
+        )
+        raise
+
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -347,7 +381,7 @@ async def chat(
         if user.get("organization_id") != organization_id:
             raise HTTPException(status_code=422, detail=f"User '{user_id}' belongs to a different organization")
 
-        result = answer_question(organization_id, ai_employee_id, user_id, question)
+        result = answer_question_with_tools(organization_id, ai_employee_id, user_id, question)
 
         if result.get("error"):
             raise HTTPException(status_code=500, detail=result["error"])
@@ -358,6 +392,8 @@ async def chat(
             "user_id": user_id,
             "question": question,
             "answer": result.get("answer"),
+            "tool_used": result.get("tool_used"),
+            "tool_result": result.get("tool_result"),
             "sources": result.get("sources", []),
             "memory_used": result.get("memory_used", False)
         }
@@ -366,6 +402,112 @@ async def chat(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(
+    organization_id: str = Form(...),
+    ai_employee_id: str = Form(...),
+    user_id: str = Form(...),
+    question: str = Form(...)
+):
+    """
+    Stream chat responses token-by-token using Server-Sent Events.
+    Each line is a JSON object: {"type":"token","content":"..."} etc.
+    Final line: {"type":"done","sources":[...],"tool_used":...,"memory_used":bool}
+    """
+    if not question.strip():
+        raise HTTPException(status_code=400, detail="Empty question")
+
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=422, detail="Organization not found")
+    agent = get_ai_employee(ai_employee_id)
+    if not agent or agent.get("organization_id") != organization_id:
+        raise HTTPException(status_code=422, detail="AI employee not found in this organization")
+
+    async def generate():
+        async for event in stream_answer_with_tools(
+            organization_id, ai_employee_id, user_id, question
+        ):
+            yield f"data: {event}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ============================================================
+# TOOL ENDPOINTS
+# ============================================================
+
+class ToolRegister(BaseModel):
+    organization_id: str
+    name: str
+    description: str = ""
+    schema: dict = {}
+    endpoint: str = ""
+
+
+@app.post("/api/tools/register", status_code=201)
+async def register_tool_endpoint(body: ToolRegister):
+    """Register a new tool for an organization"""
+    org = get_organization(body.organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        tool = register_tool(
+            body.organization_id, body.name, body.description,
+            body.schema, body.endpoint
+        )
+        if not tool:
+            raise HTTPException(status_code=500, detail="Failed to register tool")
+        return {"status": "success", "tool": tool}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tools/{organization_id}")
+async def list_tools(organization_id: str):
+    """List all tools available to an organization"""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    try:
+        tools = get_organization_tools(organization_id)
+        return {"tools": tools, "count": len(tools)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tool-executions/{organization_id}/{ai_employee_id}")
+async def get_tool_executions(organization_id: str, ai_employee_id: str, user_id: str):
+    """Get tool execution history for a (org, agent, user) triple"""
+    require_valid_hierarchy(organization_id, ai_employee_id, user_id)
+    try:
+        executions = get_tool_execution_history(organization_id, ai_employee_id, user_id)
+        return {"executions": executions, "count": len(executions)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# JOB QUEUE ENDPOINTS
+# ============================================================
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    """Fetch the status and result of a background job by its ID."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return job
+
+
+@app.get("/api/jobs")
+async def list_jobs_endpoint(organization_id: str = None, limit: int = 50):
+    """List recent background jobs, optionally filtered by organization."""
+    return {"jobs": list_jobs(organization_id, limit), "count": limit}
 
 
 # ============================================================
@@ -428,6 +570,52 @@ async def get_statistics(organization_id: str, ai_employee_id: str, user_id: str
     """Get statistics scoped to (org, agent, user) triple"""
     require_valid_hierarchy(organization_id, ai_employee_id, user_id)
     return get_stats(organization_id, ai_employee_id, user_id)
+
+
+# ============================================================
+# OBSERVABILITY ENDPOINTS
+# ============================================================
+
+def _get_recommendations(metrics: dict) -> list:
+    recs = []
+    if metrics.get("avg_latency_ms", 0) > 2000:
+        recs.append("High latency detected. Consider caching frequently accessed documents.")
+    if metrics.get("error_count", 0) > 5:
+        recs.append(f"High error rate ({metrics['error_count']} errors). Check error logs.")
+    if metrics.get("total_cost_usd", 0) > 100:
+        recs.append(f"High LLM costs (${metrics['total_cost_usd']}). Consider longer memory windows.")
+    return recs
+
+
+@app.get("/api/observability/metrics/{organization_id}")
+async def get_metrics(organization_id: str):
+    """Aggregate observability metrics for an organization."""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    metrics = get_org_metrics(organization_id)
+    if not metrics:
+        raise HTTPException(status_code=500, detail="Failed to fetch metrics")
+    return metrics
+
+
+@app.get("/api/observability/dashboard/{organization_id}")
+async def get_dashboard(organization_id: str):
+    """Full observability dashboard with health status and recommendations."""
+    from datetime import datetime
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    metrics = get_org_metrics(organization_id)
+    if not metrics:
+        raise HTTPException(status_code=500, detail="Failed to fetch metrics")
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "organization": org.get("name"),
+        "metrics": metrics,
+        "health_status": "healthy" if metrics.get("error_count", 0) < 10 else "warning",
+        "recommendations": _get_recommendations(metrics),
+    }
 
 
 # ============================================================

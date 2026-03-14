@@ -312,6 +312,51 @@
       font-size: 11px;
       font-weight: 500;
     }
+    /* Streaming cursor animation */
+    .streaming-bubble::after {
+      content: '▋';
+      display: inline-block;
+      animation: blink 0.8s step-start infinite;
+      color: var(--primary);
+      margin-left: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    /* Tool execution indicator */
+    .tool-indicator {
+      font-size: 12px;
+      color: var(--text-2);
+      background: var(--surface-3);
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+    /* Semantic memory retrieval panel */
+    .memory-panel {
+      margin-top: 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      overflow: hidden;
+    }
+    .memory-panel summary {
+      padding: 5px 10px;
+      background: var(--surface-3);
+      color: var(--text-2);
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+    .memory-panel summary::-webkit-details-marker { display: none; }
+    .memory-panel summary::before { content: '▶ '; font-size: 10px; }
+    .memory-panel[open] summary::before { content: '▼ '; }
+    .memory-item {
+      padding: 6px 10px;
+      border-top: 1px solid var(--border);
+      color: var(--text-2);
+    }
+    .memory-item-summary { margin-bottom: 2px; color: var(--text); }
+    .memory-item-topics { color: var(--text-3); font-size: 11px; }
     .sources-list {
       display: flex; flex-wrap: wrap; gap: 4px;
       padding: 0 4px;
@@ -1243,6 +1288,40 @@
     }
 
     /* ============================================================
+       METRICS TAB
+    ============================================================ */
+    #tab-metrics { display: none; flex-direction: column; overflow: hidden; }
+    #tab-metrics.active { display: flex; }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .metric-unit {
+      font-size: 11px;
+      color: var(--text-3);
+    }
+    .metric-card.danger .metric-value { color: var(--danger); }
+
+    /* ============================================================
        VOICE CALL OVERLAY
     ============================================================ */
 
@@ -1505,6 +1584,9 @@
     </button>
     <button class="tab-btn" data-tab="users">
       👥 Users
+    </button>
+    <button class="tab-btn" data-tab="metrics">
+      📊 Metrics
     </button>
   </div>
 
@@ -1908,6 +1990,75 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       METRICS TAB
+  ============================================================ -->
+  <div class="tab-content" id="tab-metrics">
+    <div style="padding:20px;flex:1;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h3 style="font-size:15px;font-weight:600">System Observability</h3>
+        <button class="btn btn-secondary btn-sm" onclick="loadMetrics()">↻ Refresh</button>
+      </div>
+
+      <!-- Metric cards -->
+      <div id="metrics-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+        <div class="metric-card">
+          <div class="metric-label">Avg Latency</div>
+          <div class="metric-value" id="m-latency">--</div>
+          <div class="metric-unit">ms</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Requests</div>
+          <div class="metric-value" id="m-requests">--</div>
+          <div class="metric-unit">API calls</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">LLM Calls</div>
+          <div class="metric-value" id="m-llm-calls">--</div>
+          <div class="metric-unit">completions</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Tokens Used</div>
+          <div class="metric-value" id="m-tokens">--</div>
+          <div class="metric-unit">total</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">LLM Cost</div>
+          <div class="metric-value" id="m-cost">--</div>
+          <div class="metric-unit">USD</div>
+        </div>
+        <div class="metric-card" id="m-errors-card">
+          <div class="metric-label">Errors</div>
+          <div class="metric-value" id="m-errors">--</div>
+          <div class="metric-unit">logged</div>
+        </div>
+      </div>
+
+      <!-- Health + recommendations -->
+      <div id="metrics-health" style="display:none;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600">Health:</span>
+          <span id="m-health-badge" style="font-size:12px;padding:2px 10px;border-radius:99px;font-weight:600"></span>
+        </div>
+        <div id="m-recommendations" style="display:none">
+          <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px">Recommendations</div>
+          <ul id="m-recs-list" style="font-size:12px;color:var(--text-2);padding-left:18px;line-height:1.8"></ul>
+        </div>
+      </div>
+
+      <!-- Recent errors -->
+      <div id="metrics-errors-section" style="display:none">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--danger)">Recent Errors</div>
+        <div id="metrics-errors-list" style="font-size:12px;display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
+      <div id="metrics-empty" style="text-align:center;padding:40px;color:var(--text-3)">
+        <div style="font-size:40px;margin-bottom:8px">📊</div>
+        <p>Select an organization to view metrics.</p>
+      </div>
+    </div>
+  </div>
+
 </div><!-- #app -->
 
 <!-- Toast container -->
@@ -1941,9 +2092,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'docs')   { loadDocs(); loadStats(); }
-    if (btn.dataset.tab === 'memory') { loadMemory(); }
-    if (btn.dataset.tab === 'users')  { renderUsersTab(); }
+    if (btn.dataset.tab === 'docs')    { loadDocs(); loadStats(); }
+    if (btn.dataset.tab === 'memory')  { loadMemory(); }
+    if (btn.dataset.tab === 'users')   { renderUsersTab(); }
+    if (btn.dataset.tab === 'metrics') { loadMetrics(); }
   });
 });
 
@@ -2402,6 +2554,85 @@ function showTyping() {
   return div;
 }
 
+// Create a live streaming bubble; returns handles to update content incrementally
+function createStreamingBubble() {
+  chatEmpty.style.display = 'none';
+  const agentName  = ctx.agentName || 'AI Employee';
+  const agentColor = getAvatarColor(ctx.agentId || 'ai');
+  const agentInit  = getAvatarInitial(agentName);
+  const timeStr    = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  div.innerHTML = `
+    <div class="msg-avatar" style="background:${agentColor}">${agentInit}</div>
+    <div class="msg-body">
+      <div class="msg-sender">${escapeHtml(agentName)}</div>
+      <div class="msg-bubble streaming-bubble"></div>
+      <div class="msg-meta"><span class="msg-time">${timeStr}</span></div>
+    </div>`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  const bubble  = div.querySelector('.msg-bubble');
+  const meta    = div.querySelector('.msg-meta');
+  const msgBody = div.querySelector('.msg-body');
+
+  return {
+    appendToken(token) {
+      bubble.textContent += token;
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    },
+    showToolActivity(toolName) {
+      let ind = div.querySelector('.tool-indicator');
+      if (!ind) {
+        ind = document.createElement('div');
+        ind.className = 'tool-indicator';
+        msgBody.insertBefore(ind, bubble);
+      }
+      ind.textContent = `🔧 Using ${toolName}…`;
+    },
+    showToolDone(toolName) {
+      const ind = div.querySelector('.tool-indicator');
+      if (ind) ind.textContent = `✅ ${toolName} done`;
+    },
+    finalize(fullText, { memory_used, sources, semantic_memory } = {}) {
+      bubble.classList.remove('streaming-bubble');
+      if (memory_used) {
+        const badge = document.createElement('span');
+        badge.className = 'memory-badge';
+        badge.textContent = '🧠 Memory';
+        meta.insertBefore(badge, meta.firstChild);
+      }
+      if (sources && sources.length > 0) {
+        const srcDiv = document.createElement('div');
+        srcDiv.className = 'sources-list';
+        srcDiv.innerHTML = sources
+          .map(s => `<span class="source-chip" onclick="copyText('${s.replace(/'/g,"\\'")}')">📎 ${s}</span>`)
+          .join('');
+        msgBody.appendChild(srcDiv);
+      }
+      if (semantic_memory && semantic_memory.length > 0) {
+        const panel = document.createElement('details');
+        panel.className = 'memory-panel';
+        const summary = document.createElement('summary');
+        summary.textContent = `Retrieved ${semantic_memory.length} relevant memor${semantic_memory.length === 1 ? 'y' : 'ies'}`;
+        panel.appendChild(summary);
+        semantic_memory.forEach(m => {
+          const item = document.createElement('div');
+          item.className = 'memory-item';
+          const topics = (m.topics || []).join(', ');
+          item.innerHTML = `<div class="memory-item-summary">${escapeHtml(m.summary || '')}</div>`
+            + (topics ? `<div class="memory-item-topics">Topics: ${escapeHtml(topics)}</div>` : '');
+          panel.appendChild(item);
+        });
+        msgBody.appendChild(panel);
+      }
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  };
+}
+
 async function sendMessage() {
   const { orgId, agentId, userId } = ctx;
   const text = chatInput.value.trim();
@@ -2417,7 +2648,11 @@ async function sendMessage() {
   chatHistory.push(userMsg);
   saveChat();
   appendBubble(userMsg);
+
   const typing = showTyping();
+  let streamHandle = null;
+  let fullAnswer = '';
+  let doneMeta = {};
 
   try {
     const fd = new FormData();
@@ -2426,33 +2661,80 @@ async function sendMessage() {
     fd.append('user_id',         userId);
     fd.append('question',        text);
 
-    const r = await fetch(`${API}/api/chat`, { method: 'POST', body: fd });
-    const data = await r.json();
+    const r = await fetch(`${API}/api/chat/stream`, { method: 'POST', body: fd });
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({ detail: 'Request failed' }));
+      throw new Error(errData.detail || 'Request failed');
+    }
+
     typing.remove();
-    if (!r.ok) throw new Error(data.detail || 'Request failed');
+    streamHandle = createStreamingBubble();
+
+    const reader  = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // hold incomplete last chunk
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+
+        let evt;
+        try { evt = JSON.parse(raw); } catch { continue; }
+
+        if (evt.type === 'token') {
+          fullAnswer += evt.content;
+          streamHandle.appendToken(evt.content);
+        } else if (evt.type === 'tool_start') {
+          streamHandle.showToolActivity(evt.tool_name);
+        } else if (evt.type === 'tool_result') {
+          streamHandle.showToolDone(evt.tool_name);
+        } else if (evt.type === 'done') {
+          doneMeta = evt;
+        } else if (evt.type === 'error') {
+          throw new Error(evt.message);
+        }
+      }
+    }
+
+    streamHandle.finalize(fullAnswer, doneMeta);
 
     const aiMsg = {
-      role: 'assistant', content: data.answer,
+      role: 'assistant', content: fullAnswer,
       time: new Date().toISOString(),
-      memory_used: data.memory_used,
-      sources: data.sources || []
+      memory_used: doneMeta.memory_used || false,
+      sources: doneMeta.sources || [],
+      tool_used: doneMeta.tool_used || null
     };
     chatHistory.push(aiMsg);
     saveChat();
-    appendBubble(aiMsg);
+
     // Voice TTS hook — speak AI response if voice panel is open
     if (typeof voicePanelOpen !== 'undefined' && voicePanelOpen &&
         typeof vsAutoSpeak !== 'undefined' && vsAutoSpeak) {
-      voiceSpeakResponse(data.answer);
+      voiceSpeakResponse(fullAnswer);
     }
     await updateMemBadge();
+
   } catch (err) {
-    typing.remove();
+    if (typing.parentNode) typing.remove();
     toast(`Error: ${err.message}`, 'error');
-    const errMsg = { role: 'assistant', content: `⚠️ ${err.message}`, time: new Date().toISOString() };
-    chatHistory.push(errMsg);
-    saveChat();
-    appendBubble(errMsg);
+    if (streamHandle) {
+      streamHandle.finalize(`⚠️ ${err.message}`, {});
+    } else {
+      const errMsg = { role: 'assistant', content: `⚠️ ${err.message}`, time: new Date().toISOString() };
+      chatHistory.push(errMsg);
+      saveChat();
+      appendBubble(errMsg);
+    }
   } finally {
     btnSend.disabled = false;
     chatInput.focus();
@@ -2875,6 +3157,93 @@ document.getElementById('btn-create-user-tab').addEventListener('click', async (
     renderUsersTab();
   } catch (err) { toast(`Error: ${err.message}`, 'error'); }
 });
+
+// ============================================================
+// METRICS TAB
+// ============================================================
+
+async function loadMetrics() {
+  const orgId = ctx.orgId;
+  const empty   = document.getElementById('metrics-empty');
+  const cards   = document.getElementById('metrics-cards');
+  const health  = document.getElementById('metrics-health');
+  const errSect = document.getElementById('metrics-errors-section');
+
+  if (!orgId) {
+    empty.style.display = 'block';
+    cards.style.display = 'none';
+    health.style.display = 'none';
+    errSect.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  cards.style.display = 'grid';
+
+  try {
+    const r = await fetch(`${API}/api/observability/dashboard/${encodeURIComponent(orgId)}`);
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed to load metrics');
+    const data = await r.json();
+    const m = data.metrics || {};
+
+    document.getElementById('m-latency').textContent   = (m.avg_latency_ms ?? '--').toLocaleString();
+    document.getElementById('m-requests').textContent  = (m.total_requests ?? '--').toLocaleString();
+    document.getElementById('m-llm-calls').textContent = (m.total_llm_calls ?? '--').toLocaleString();
+    document.getElementById('m-tokens').textContent    = (m.total_tokens_used ?? '--').toLocaleString();
+    document.getElementById('m-cost').textContent      = m.total_cost_usd != null
+      ? `$${Number(m.total_cost_usd).toFixed(4)}` : '--';
+    document.getElementById('m-errors').textContent    = (m.error_count ?? '--').toLocaleString();
+
+    // Highlight errors card red if any
+    const errCard = document.getElementById('m-errors-card');
+    errCard.classList.toggle('danger', (m.error_count || 0) > 0);
+
+    // Health badge
+    health.style.display = 'block';
+    const badge = document.getElementById('m-health-badge');
+    badge.textContent = data.health_status === 'healthy' ? '✓ Healthy' : '⚠ Warning';
+    badge.style.background = data.health_status === 'healthy'
+      ? 'rgba(16,185,129,.15)' : 'rgba(245,158,11,.15)';
+    badge.style.color = data.health_status === 'healthy'
+      ? 'var(--success)' : 'var(--warning)';
+
+    // Recommendations
+    const recs = data.recommendations || [];
+    const recDiv = document.getElementById('m-recommendations');
+    const recList = document.getElementById('m-recs-list');
+    if (recs.length) {
+      recList.innerHTML = recs.map(r => `<li>${escapeHtml(r)}</li>`).join('');
+      recDiv.style.display = 'block';
+    } else {
+      recDiv.style.display = 'none';
+    }
+
+    // Recent errors
+    const errs = (m.recent_errors || []);
+    if (errs.length) {
+      errSect.style.display = 'block';
+      document.getElementById('metrics-errors-list').innerHTML = errs.map(e => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:6px;padding:8px 12px">
+          <div style="font-weight:600;color:var(--danger);margin-bottom:2px">${escapeHtml(e.error_type || 'error')}</div>
+          <div style="color:var(--text-2)">${escapeHtml(e.error_message || '')}</div>
+          <div style="color:var(--text-3);font-size:10px;margin-top:4px">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</div>
+        </div>
+      `).join('');
+    } else {
+      errSect.style.display = 'none';
+    }
+
+  } catch (err) {
+    toast(`Metrics error: ${err.message}`, 'error');
+  }
+}
+
+// Auto-refresh metrics every 30s when the tab is active
+setInterval(() => {
+  if (document.querySelector('[data-tab="metrics"]')?.classList.contains('active')) {
+    loadMetrics();
+  }
+}, 30000);
 
 // ============================================================
 // VOICE SYSTEM — Web Speech API (STT + TTS) + Web Audio (waveform)

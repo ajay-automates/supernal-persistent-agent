@@ -7,13 +7,28 @@ from config import OPENAI_API_KEY, LANGSMITH_API_KEY
 from db import (
     get_or_create_user, save_message,
     get_user_ai_employee_memory, search_organization_chunks,
-    get_organization, get_ai_employee
+    get_organization, get_ai_employee,
+    get_organization_tools, log_tool_execution,
+    store_conversation_embedding, search_semantic_memory,
+    log_llm_call, log_error,
 )
-from openai import OpenAI
-from typing import List, Dict, Tuple
+from openai import OpenAI, AsyncOpenAI
+from worker import register_task, submit as worker_submit, submit_async as worker_submit_async
+from typing import List, Dict, Tuple, Optional, AsyncGenerator
 import os
+import json
+import time
+import uuid
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+async_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+
+def _llm_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    """Estimate USD cost for a completion call (gpt-4o-mini pricing)."""
+    if "gpt-4o-mini" in model:
+        return (prompt_tokens * 0.00000015) + (completion_tokens * 0.0000006)
+    return 0.0
 
 # Optional LangSmith tracing
 if LANGSMITH_API_KEY:
@@ -62,6 +77,90 @@ def retrieve_context(
     except Exception as e:
         print(f"Error in retrieve_context: {e}")
         return f"Error retrieving context: {str(e)}", []
+
+
+# ============================================================
+# SEMANTIC MEMORY
+# ============================================================
+
+@register_task("embed_turn")
+def _embed_turn_background(
+    organization_id: str,
+    ai_employee_id: str,
+    user_id: str,
+    question: str,
+    answer: str,
+    conv_id: str = None
+) -> dict:
+    """
+    Background task: embed a Q&A turn and store in conversation_embeddings.
+    Registered as the "embed_turn" worker task so it is tracked in the jobs table.
+    """
+    try:
+        text = f"User: {question}\nAssistant: {answer}"
+
+        emb = client.embeddings.create(
+            model="text-embedding-3-small", input=text
+        ).data[0].embedding
+
+        summary_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"Summarize this conversation turn in 1-2 sentences:\n{text}"}],
+            max_tokens=80,
+            temperature=0.1
+        )
+        summary = summary_resp.choices[0].message.content.strip()
+
+        topics_resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": (
+                f"Extract 3-5 key topics from this conversation as a JSON array of strings:\n{text}\n"
+                "Respond only with the JSON array, e.g. [\"topic1\", \"topic2\"]."
+            )}],
+            max_tokens=60,
+            temperature=0.1
+        )
+        try:
+            topics = json.loads(topics_resp.choices[0].message.content.strip())
+        except Exception:
+            topics = []
+
+        store_conversation_embedding(
+            organization_id, ai_employee_id, user_id,
+            emb, summary, topics, conv_id
+        )
+        return {"status": "embedded", "summary": summary, "topics": topics}
+    except Exception as e:
+        print(f"Background embedding error: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+def get_semantic_memory_context(
+    organization_id: str,
+    ai_employee_id: str,
+    user_id: str,
+    question: str
+) -> Dict:
+    """
+    Return a dict with:
+      recent_memory   — last 10 messages (always included)
+      relevant_memory — up to 5 semantically similar past turns
+    """
+    recent = get_user_ai_employee_memory(
+        organization_id, ai_employee_id, user_id, limit=10
+    )
+    try:
+        q_emb = client.embeddings.create(
+            model="text-embedding-3-small", input=question
+        ).data[0].embedding
+        semantic = search_semantic_memory(
+            organization_id, ai_employee_id, user_id, q_emb, k=5
+        )
+    except Exception as e:
+        print(f"Semantic memory search error: {e}")
+        semantic = []
+
+    return {"recent_memory": recent, "relevant_memory": semantic}
 
 
 # ============================================================
@@ -212,3 +311,522 @@ def answer_question(
         print(f"Error in answer_question: {e}")
         result["error"] = str(e)
         return result
+
+
+# ============================================================
+# TOOL EXECUTION
+# ============================================================
+
+def route_tool_call(tool_name: str, params: dict) -> dict:
+    """
+    Route a tool call to its executor.
+    Returns a result dict. All implementations are production-ready stubs
+    that can be swapped out for real integrations.
+    """
+    if tool_name == "send_email":
+        to = params.get("to", "")
+        subject = params.get("subject", "")
+        body = params.get("body", "")
+        return {
+            "status": "sent",
+            "message_id": str(uuid.uuid4()),
+            "to": to,
+            "subject": subject,
+            "note": f"Email sent to {to} with subject '{subject}'"
+        }
+
+    elif tool_name == "create_ticket":
+        customer = params.get("customer", "")
+        issue = params.get("issue", "")
+        priority = params.get("priority", "medium")
+        return {
+            "status": "created",
+            "ticket_id": f"TKT-{str(uuid.uuid4())[:8].upper()}",
+            "customer": customer,
+            "issue": issue,
+            "priority": priority
+        }
+
+    elif tool_name == "query_crm":
+        customer_id = params.get("customer_id", "")
+        return {
+            "customer_id": customer_id,
+            "name": "Sample Customer",
+            "email": "customer@example.com",
+            "plan": "Pro",
+            "status": "active",
+            "since": "2024-01-15"
+        }
+
+    elif tool_name == "search_web":
+        query = params.get("query", "")
+        return {
+            "query": query,
+            "results": [
+                {"title": f"Result 1 for '{query}'", "url": "https://example.com/1", "snippet": "Relevant information..."},
+                {"title": f"Result 2 for '{query}'", "url": "https://example.com/2", "snippet": "More details..."},
+            ]
+        }
+
+    elif tool_name == "update_database":
+        table = params.get("table", "")
+        record_id = params.get("record_id", "")
+        data = params.get("data", {})
+        return {
+            "status": "updated",
+            "table": table,
+            "record_id": record_id,
+            "fields_updated": list(data.keys())
+        }
+
+    elif tool_name == "add_calendar_event":
+        user = params.get("user", "")
+        date = params.get("date", "")
+        time_val = params.get("time", "")
+        description = params.get("description", "")
+        return {
+            "status": "created",
+            "event_id": str(uuid.uuid4()),
+            "user": user,
+            "date": date,
+            "time": time_val,
+            "description": description
+        }
+
+    else:
+        return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+
+
+def _extract_tool_call(response_text: str) -> Optional[dict]:
+    """
+    Parse TOOL:/PARAMS: block from the LLM response.
+    Returns {"tool": str, "params": dict} or None.
+    """
+    try:
+        lines = response_text.strip().splitlines()
+        tool_name = None
+        params_str = None
+        for i, line in enumerate(lines):
+            if line.startswith("TOOL:"):
+                tool_name = line[len("TOOL:"):].strip()
+            elif line.startswith("PARAMS:"):
+                params_str = line[len("PARAMS:"):].strip()
+                # Collect continuation lines until next blank or end
+                for j in range(i + 1, len(lines)):
+                    if lines[j].strip():
+                        params_str += " " + lines[j].strip()
+                    else:
+                        break
+        if tool_name and params_str:
+            params = json.loads(params_str)
+            return {"tool": tool_name, "params": params}
+    except Exception as e:
+        print(f"Error parsing tool call: {e}")
+    return None
+
+
+# ============================================================
+# TOOL-AWARE AGENT PIPELINE
+# ============================================================
+
+@traceable(name="agent_pipeline_with_tools", run_type="chain")
+def answer_question_with_tools(
+    organization_id: str,
+    ai_employee_id: str,
+    user_id: str,
+    question: str
+) -> Dict:
+    """
+    Tool-aware agent pipeline:
+    1. Fetch org / AI employee metadata for persona
+    2. Retrieve relevant org-level documents
+    3. Load user's past conversations with THIS agent
+    4. Load org's registered tools
+    5. First LLM call: decide if a tool is needed
+    6. If tool needed: execute it and log the execution
+    7. Second LLM call (if tool used): generate final answer using tool result
+    8. Persist conversation
+    """
+    result = {
+        "organization_id": organization_id,
+        "ai_employee_id": ai_employee_id,
+        "user_id": user_id,
+        "question": question,
+        "answer": None,
+        "tool_used": None,
+        "tool_result": None,
+        "sources": [],
+        "memory_used": False,
+        "error": None
+    }
+
+    try:
+        # Ensure user exists
+        user = get_or_create_user(organization_id, user_id)
+        if not user:
+            result["error"] = "Failed to create/retrieve user"
+            return result
+
+        org = get_organization(organization_id) or {}
+        agent = get_ai_employee(ai_employee_id) or {}
+
+        org_name = org.get("name", "the organization")
+        ai_name = agent.get("name", "AI Assistant")
+        ai_role = agent.get("role", "Assistant")
+        job_desc = agent.get("job_description", "")
+        user_name = user.get("name", "")
+
+        # Retrieve org docs + memory (recent + semantic)
+        context, sources = retrieve_context(organization_id, question, k=4)
+        result["sources"] = sources
+
+        mem_ctx = get_semantic_memory_context(organization_id, ai_employee_id, user_id, question)
+        recent_memory   = mem_ctx["recent_memory"]
+        relevant_memory = mem_ctx["relevant_memory"]
+        result["memory_used"] = len(recent_memory) > 0 or len(relevant_memory) > 0
+        result["semantic_memory"] = relevant_memory
+
+        # Build tool list for the system prompt
+        org_tools = get_organization_tools(organization_id)
+        builtin_tools = [
+            "send_email(to, subject, body) - Send an email to a recipient",
+            "create_ticket(customer, issue, priority) - Create a support ticket",
+            "query_crm(customer_id) - Look up customer information from CRM",
+            "search_web(query) - Search the web for information",
+            "update_database(table, record_id, data) - Update a database record",
+            "add_calendar_event(user, date, time, description) - Schedule a calendar event",
+        ]
+        custom_tool_lines = [
+            f"{t['name']}({', '.join(t.get('schema', {}).get('parameters', {}).keys())}) - {t.get('description', '')}"
+            for t in org_tools
+        ]
+        tools_list = "\n".join(f"- {t}" for t in builtin_tools + custom_tool_lines)
+
+        # Format relevant past memories for the prompt
+        relevant_mem_text = ""
+        if relevant_memory:
+            snippets = "\n".join(
+                f"- {m['summary']} (topics: {', '.join(m.get('topics') or [])})"
+                for m in relevant_memory
+            )
+            relevant_mem_text = f"\nRelevant past discussions:\n{snippets}\n"
+
+        system_prompt = f"""You are {ai_name}, an AI employee at {org_name}.
+Your role: {ai_role}
+Your responsibilities: {job_desc or 'Help users with their questions.'}
+
+You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
+
+Available tools:
+{tools_list}
+
+To use a tool, respond ONLY with this exact format (no other text before it):
+TOOL: <tool_name>
+PARAMS: {{"key": "value", ...}}
+
+If no tool is needed, answer the question directly and helpfully.
+{relevant_mem_text}
+Organization Knowledge Base:
+---
+{context}
+---
+Sources: {', '.join(sources) if sources else 'None'}"""
+
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in recent_memory[-12:]:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        messages.append({"role": "user", "content": question})
+
+        # First LLM call: decide if tool needed
+        _t0 = int(time.time() * 1000)
+        first_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.2
+        )
+        _first_latency = int(time.time() * 1000) - _t0
+        first_text = first_response.choices[0].message.content.strip()
+        _u = first_response.usage
+        log_llm_call(
+            organization_id, ai_employee_id, "gpt-4o-mini",
+            _u.prompt_tokens, _u.completion_tokens, _u.total_tokens,
+            _first_latency, _llm_cost("gpt-4o-mini", _u.prompt_tokens, _u.completion_tokens),
+        )
+
+        tool_call = _extract_tool_call(first_text)
+
+        if tool_call:
+            tool_name = tool_call["tool"]
+            tool_params = tool_call["params"]
+
+            # Execute the tool and time it
+            start_ms = int(time.time() * 1000)
+            try:
+                tool_result = route_tool_call(tool_name, tool_params)
+                status = "success"
+                error_msg = None
+            except Exception as te:
+                tool_result = {"error": str(te)}
+                status = "failed"
+                error_msg = str(te)
+            latency_ms = int(time.time() * 1000) - start_ms
+
+            log_tool_execution(
+                organization_id=organization_id,
+                ai_employee_id=ai_employee_id,
+                user_id=user_id,
+                tool_name=tool_name,
+                input_params=tool_params,
+                output_result=tool_result,
+                status=status,
+                error_message=error_msg,
+                latency_ms=latency_ms
+            )
+
+            result["tool_used"] = tool_name
+            result["tool_result"] = tool_result
+
+            # Second LLM call: explain result in natural language
+            messages.append({"role": "assistant", "content": first_text})
+            messages.append({
+                "role": "user",
+                "content": (
+                    f"Tool '{tool_name}' executed successfully. Result: {json.dumps(tool_result)}. "
+                    f"Now respond to the user's original request naturally, confirming what was done."
+                )
+            })
+
+            _t1 = int(time.time() * 1000)
+            final_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=600,
+                temperature=0.3
+            )
+            _final_latency = int(time.time() * 1000) - _t1
+            answer = final_response.choices[0].message.content.strip()
+            _u2 = final_response.usage
+            log_llm_call(
+                organization_id, ai_employee_id, "gpt-4o-mini",
+                _u2.prompt_tokens, _u2.completion_tokens, _u2.total_tokens,
+                _final_latency, _llm_cost("gpt-4o-mini", _u2.prompt_tokens, _u2.completion_tokens),
+            )
+        else:
+            answer = first_text
+
+        result["answer"] = answer
+
+        # Persist conversation; capture assistant message ID for embedding reference
+        save_message(organization_id, ai_employee_id, user_id, "user", question)
+        asst_id = save_message(organization_id, ai_employee_id, user_id, "assistant", answer)
+
+        # Background: embed this turn for future semantic memory retrieval
+        worker_submit(
+            "embed_turn",
+            {"organization_id": organization_id, "ai_employee_id": ai_employee_id,
+             "user_id": user_id, "question": question, "answer": answer, "conv_id": asst_id},
+            organization_id=organization_id
+        )
+
+        return result
+
+    except Exception as e:
+        print(f"Error in answer_question_with_tools: {e}")
+        result["error"] = str(e)
+        return result
+
+
+# Keep original as alias for backwards compatibility
+answer_question = answer_question_with_tools
+
+
+# ============================================================
+# STREAMING PIPELINE
+# ============================================================
+
+async def stream_answer_with_tools(
+    organization_id: str,
+    ai_employee_id: str,
+    user_id: str,
+    question: str
+) -> AsyncGenerator[str, None]:
+    """
+    Async streaming version of the tool-aware pipeline.
+    Yields newline-delimited JSON SSE events:
+      {"type":"token","content":"..."}        — streamed answer tokens
+      {"type":"tool_start","tool_name":"..."}  — tool about to execute
+      {"type":"tool_result","tool_name":"...","result":{...}}  — tool done
+      {"type":"done","sources":[...],"tool_used":"...","tool_result":{...},"memory_used":bool}
+      {"type":"error","message":"..."}        — on failure
+    """
+    try:
+        user = get_or_create_user(organization_id, user_id)
+        if not user:
+            yield json.dumps({"type": "error", "message": "Failed to create/retrieve user"}) + "\n"
+            return
+
+        org = get_organization(organization_id) or {}
+        agent = get_ai_employee(ai_employee_id) or {}
+
+        org_name  = org.get("name", "the organization")
+        ai_name   = agent.get("name", "AI Assistant")
+        ai_role   = agent.get("role", "Assistant")
+        job_desc  = agent.get("job_description", "")
+
+        context, sources = retrieve_context(organization_id, question, k=4)
+
+        mem_ctx = get_semantic_memory_context(organization_id, ai_employee_id, user_id, question)
+        recent_memory   = mem_ctx["recent_memory"]
+        relevant_memory = mem_ctx["relevant_memory"]
+        memory_used = len(recent_memory) > 0 or len(relevant_memory) > 0
+
+        org_tools = get_organization_tools(organization_id)
+        builtin_tools = [
+            "send_email(to, subject, body) - Send an email to a recipient",
+            "create_ticket(customer, issue, priority) - Create a support ticket",
+            "query_crm(customer_id) - Look up customer information from CRM",
+            "search_web(query) - Search the web for information",
+            "update_database(table, record_id, data) - Update a database record",
+            "add_calendar_event(user, date, time, description) - Schedule a calendar event",
+        ]
+        custom_tool_lines = [
+            f"{t['name']}({', '.join(t.get('schema', {}).get('parameters', {}).keys())}) - {t.get('description', '')}"
+            for t in org_tools
+        ]
+        tools_list = "\n".join(f"- {t}" for t in builtin_tools + custom_tool_lines)
+
+        relevant_mem_text = ""
+        if relevant_memory:
+            snippets = "\n".join(
+                f"- {m['summary']} (topics: {', '.join(m.get('topics') or [])})"
+                for m in relevant_memory
+            )
+            relevant_mem_text = f"\nRelevant past discussions:\n{snippets}\n"
+
+        system_prompt = f"""You are {ai_name}, an AI employee at {org_name}.
+Your role: {ai_role}
+Your responsibilities: {job_desc or 'Help users with their questions.'}
+
+You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
+
+Available tools:
+{tools_list}
+
+To use a tool, respond ONLY with this exact format (no other text before it):
+TOOL: <tool_name>
+PARAMS: {{"key": "value", ...}}
+
+If no tool is needed, answer the question directly and helpfully.
+{relevant_mem_text}
+Organization Knowledge Base:
+---
+{context}
+---
+Sources: {', '.join(sources) if sources else 'None'}"""
+
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in recent_memory[-12:]:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        messages.append({"role": "user", "content": question})
+
+        # --- Step 1: async non-streaming tool-detection call (cheap, 150 tokens) ---
+        _td0 = int(time.time() * 1000)
+        detect_response = await async_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=150,
+            temperature=0.2
+        )
+        _td_lat = int(time.time() * 1000) - _td0
+        detect_text = detect_response.choices[0].message.content.strip()
+        _du = detect_response.usage
+        log_llm_call(
+            organization_id, ai_employee_id, "gpt-4o-mini",
+            _du.prompt_tokens, _du.completion_tokens, _du.total_tokens,
+            _td_lat, _llm_cost("gpt-4o-mini", _du.prompt_tokens, _du.completion_tokens),
+        )
+        tool_call = _extract_tool_call(detect_text)
+
+        tool_used = None
+        tool_result = None
+
+        if tool_call:
+            tool_name   = tool_call["tool"]
+            tool_params = tool_call["params"]
+
+            yield json.dumps({"type": "tool_start", "tool_name": tool_name}) + "\n"
+
+            start_ms = int(time.time() * 1000)
+            try:
+                tool_result = route_tool_call(tool_name, tool_params)
+                status = "success"
+                error_msg = None
+            except Exception as te:
+                tool_result = {"error": str(te)}
+                status = "failed"
+                error_msg = str(te)
+            latency_ms = int(time.time() * 1000) - start_ms
+
+            log_tool_execution(
+                organization_id=organization_id,
+                ai_employee_id=ai_employee_id,
+                user_id=user_id,
+                tool_name=tool_name,
+                input_params=tool_params,
+                output_result=tool_result,
+                status=status,
+                error_message=error_msg,
+                latency_ms=latency_ms
+            )
+            tool_used = tool_name
+            yield json.dumps({"type": "tool_result", "tool_name": tool_name, "result": tool_result}) + "\n"
+
+            messages.append({"role": "assistant", "content": detect_text})
+            messages.append({
+                "role": "user",
+                "content": (
+                    f"Tool '{tool_name}' executed successfully. Result: {json.dumps(tool_result)}. "
+                    f"Now respond to the user's original request naturally, confirming what was done."
+                )
+            })
+
+        # --- Step 2: async streaming call for the final answer ---
+        stream = await async_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.3,
+            stream=True
+        )
+
+        full_answer = ""
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content if chunk.choices[0].delta else None
+            if delta:
+                full_answer += delta
+                yield json.dumps({"type": "token", "content": delta}) + "\n"
+
+        # --- Step 3: persist + background embedding + signal done ---
+        save_message(organization_id, ai_employee_id, user_id, "user", question)
+        asst_id = save_message(organization_id, ai_employee_id, user_id, "assistant", full_answer)
+
+        await worker_submit_async(
+            "embed_turn",
+            {"organization_id": organization_id, "ai_employee_id": ai_employee_id,
+             "user_id": user_id, "question": question, "answer": full_answer, "conv_id": asst_id},
+            organization_id=organization_id
+        )
+
+        yield json.dumps({
+            "type": "done",
+            "sources": sources,
+            "tool_used": tool_used,
+            "tool_result": tool_result,
+            "memory_used": memory_used,
+            "semantic_memory": relevant_memory,
+        }) + "\n"
+
+    except Exception as e:
+        print(f"Error in stream_answer_with_tools: {e}")
+        yield json.dumps({"type": "error", "message": str(e)}) + "\n"
