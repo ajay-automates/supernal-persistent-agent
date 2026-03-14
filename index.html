@@ -989,6 +989,231 @@
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .header-right .status-badge { display: none; }
     }
+
+    /* ============================================================
+       VOICE SYSTEM
+    ============================================================ */
+
+    /* Voice Panel */
+    .voice-panel {
+      background: var(--surface);
+      border-top: 2px solid var(--primary);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .voice-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 18px 0;
+    }
+    .voice-panel-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }
+    .voice-live-badge {
+      display: none;
+      font-size: 11px; padding: 2px 8px;
+      border-radius: 99px;
+      background: rgba(16,185,129,.15); color: #34d399;
+      border: 1px solid rgba(16,185,129,.3);
+      animation: blink 1.4s ease infinite;
+    }
+    .voice-live-badge.show { display: inline; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* Mic Orb */
+    .mic-orb {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: var(--surface-2); border: 2.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; cursor: pointer;
+      transition: all .25s; flex-shrink: 0; position: relative;
+      user-select: none;
+    }
+    .mic-orb:hover { border-color: var(--primary); background: rgba(99,102,241,.08); }
+    .mic-orb.listening {
+      background: rgba(16,185,129,.15); border-color: #34d399;
+      animation: orbPulseGreen 1.6s ease infinite;
+    }
+    .mic-orb.processing {
+      background: rgba(245,158,11,.15); border-color: var(--warning);
+      animation: orbSpin .8s linear infinite;
+    }
+    .mic-orb.speaking {
+      background: rgba(99,102,241,.18); border-color: var(--primary);
+      animation: orbPulsePurple 1.2s ease infinite;
+    }
+    @keyframes orbPulseGreen {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(52,211,153,.5); }
+      50%    { box-shadow: 0 0 0 14px rgba(52,211,153,0); }
+    }
+    @keyframes orbPulsePurple {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(99,102,241,.5); }
+      50%    { box-shadow: 0 0 0 12px rgba(99,102,241,0); }
+    }
+    @keyframes orbSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Status row */
+    .voice-status-section {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 18px 10px;
+    }
+    .voice-info { flex: 1; min-width: 0; }
+    .voice-status-label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      margin-bottom: 5px;
+    }
+    .voice-status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-3); flex-shrink: 0; transition: background .3s;
+    }
+    .voice-status-dot.listening { background: #34d399; animation: blink 1s ease infinite; }
+    .voice-status-dot.processing { background: var(--warning); }
+    .voice-status-dot.speaking   { background: var(--primary); animation: blink 1.5s ease infinite; }
+
+    .voice-transcript {
+      font-size: 13px; color: var(--text-2); min-height: 20px; line-height: 1.5;
+    }
+    .voice-transcript .vt-interim { color: var(--text-3); font-style: italic; }
+    .voice-transcript .vt-final   { color: var(--text); font-style: normal; font-weight: 500; }
+    .voice-confidence {
+      font-size: 11px; color: var(--text-3); margin-top: 3px;
+    }
+
+    /* Waveform */
+    .waveform-wrap {
+      padding: 0 18px 10px;
+    }
+    #voice-waveform {
+      width: 100%; height: 48px; border-radius: var(--radius-sm);
+      background: var(--surface-2); display: block;
+    }
+
+    /* Controls */
+    .voice-controls {
+      padding: 10px 18px 14px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .voice-ctrl-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .v-select {
+      flex: 1; min-width: 180px;
+      padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); color: var(--text); font-size: 12px;
+      cursor: pointer; transition: border-color .2s;
+    }
+    .v-select:focus { outline: none; border-color: var(--primary); }
+    .v-auto-speak {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none;
+      white-space: nowrap;
+    }
+    .v-auto-speak input { accent-color: var(--primary); cursor: pointer; }
+
+    /* Sliders */
+    .vslider-group {
+      display: flex; align-items: center; gap: 7px; flex: 1; min-width: 120px;
+    }
+    .vslider-lbl {
+      font-size: 11px; color: var(--text-3); font-weight: 500;
+      white-space: nowrap; width: 48px; flex-shrink: 0;
+    }
+    .vslider {
+      flex: 1; height: 3px; border-radius: 99px;
+      background: var(--surface-3); outline: none;
+      -webkit-appearance: none; appearance: none; cursor: pointer;
+    }
+    .vslider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--primary); cursor: pointer;
+    }
+    .vslider::-moz-range-thumb {
+      width: 14px; height: 14px; border: none;
+      border-radius: 50%; background: var(--primary); cursor: pointer;
+    }
+    .vslider-val {
+      font-size: 11px; color: var(--text-2); width: 30px; text-align: right; flex-shrink: 0;
+    }
+
+    /* Voice action buttons */
+    .voice-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    .btn-v {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); color: var(--text);
+      font-size: 12px; font-weight: 500;
+      transition: all .2s; white-space: nowrap; cursor: pointer;
+    }
+    .btn-v:hover { background: var(--surface-3); border-color: var(--primary); color: var(--primary); }
+    .btn-v.v-listen { background: rgba(16,185,129,.12); border-color: #34d399; color: #34d399; }
+    .btn-v.v-muted  { background: rgba(239,68,68,.1);  border-color: var(--danger); color: var(--danger); }
+    .btn-v.v-danger:hover { background: rgba(239,68,68,.1); border-color: var(--danger); color: var(--danger); }
+
+    /* Continuous mode toggle */
+    .v-continuous {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-2);
+      cursor: pointer; user-select: none; margin-left: auto; white-space: nowrap;
+    }
+    .v-toggle {
+      width: 36px; height: 20px;
+      background: var(--surface-3); border-radius: 99px;
+      position: relative; transition: background .25s; flex-shrink: 0;
+    }
+    .v-toggle.on { background: var(--success); }
+    .v-toggle::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; top: 3px; left: 3px; transition: left .25s;
+    }
+    .v-toggle.on::after { left: 19px; }
+
+    /* Mic toggle button in input bar */
+    .btn-mic {
+      width: 44px; height: 44px;
+      border: 1.5px solid var(--border); background: var(--surface-2);
+      border-radius: var(--radius); display: flex; align-items: center;
+      justify-content: center; font-size: 18px; cursor: pointer;
+      transition: all .2s; flex-shrink: 0; position: relative;
+    }
+    .btn-mic:hover { background: var(--surface-3); border-color: var(--primary); }
+    .btn-mic.mic-open {
+      background: rgba(99,102,241,.15); border-color: var(--primary); color: var(--primary);
+    }
+    .btn-mic.mic-listening {
+      background: rgba(16,185,129,.15); border-color: #34d399;
+      animation: orbPulseGreen 1.6s ease infinite;
+    }
+    .mic-dot {
+      position: absolute; top: -3px; right: -3px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #34d399; border: 2px solid var(--surface); display: none;
+    }
+    .btn-mic.mic-listening .mic-dot,
+    .btn-mic.mic-open .mic-dot { display: block; }
+
+    /* Keyboard shortcut hints */
+    .voice-kbd-hints {
+      font-size: 10px; color: var(--text-3);
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: monospace; }
+
+    /* Mobile */
+    @media (max-width: 700px) {
+      .voice-status-section { padding: 10px 14px 8px; gap: 12px; }
+      .mic-orb { width: 52px; height: 52px; font-size: 22px; }
+      .waveform-wrap { padding: 0 14px 8px; }
+      .voice-controls { padding: 8px 14px 12px; }
+      .btn-v { padding: 5px 9px; font-size: 11px; }
+      .vslider-group { min-width: 100px; }
+    }
   </style>
 </head>
 <body>
@@ -1116,6 +1341,97 @@
       </div>
     </div>
 
+    <!-- ============================================================
+         VOICE PANEL (hidden by default, toggled by mic button)
+    ============================================================ -->
+    <div id="voice-panel" class="voice-panel" style="display:none">
+
+      <!-- Header -->
+      <div class="voice-panel-header">
+        <div class="voice-panel-title">
+          🎙️ Voice Interface
+          <span class="voice-live-badge" id="voice-live-badge">● LIVE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <!-- Continuous mode toggle -->
+          <label class="v-continuous" id="v-continuous-label" title="Continuous mode: voice loops automatically (C)">
+            <span>Continuous</span>
+            <div class="v-toggle" id="v-continuous-sw"></div>
+          </label>
+          <button id="btn-close-voice" class="btn-icon" style="width:26px;height:26px;font-size:13px" title="Close voice panel">✕</button>
+        </div>
+      </div>
+
+      <!-- Status orb + info -->
+      <div class="voice-status-section">
+        <button class="mic-orb" id="mic-orb" title="Click to start/stop listening">🎤</button>
+        <div class="voice-info">
+          <div class="voice-status-label">
+            <div class="voice-status-dot" id="v-status-dot"></div>
+            <span id="v-status-text">Ready</span>
+          </div>
+          <div class="voice-transcript" id="v-transcript">
+            <span class="vt-interim">Click the mic or press Space to start…</span>
+          </div>
+          <div class="voice-confidence" id="v-confidence"></div>
+        </div>
+      </div>
+
+      <!-- Waveform canvas -->
+      <div class="waveform-wrap">
+        <canvas id="voice-waveform" height="48"></canvas>
+      </div>
+
+      <!-- Controls -->
+      <div class="voice-controls">
+
+        <!-- Row 1: Voice selector + auto-speak -->
+        <div class="voice-ctrl-row">
+          <select id="v-voice-sel" class="v-select" title="Select TTS voice"></select>
+          <label class="v-auto-speak" title="Automatically speak AI responses">
+            <input type="checkbox" id="v-auto-speak" checked>
+            Auto-speak responses
+          </label>
+        </div>
+
+        <!-- Row 2: Sliders -->
+        <div class="voice-ctrl-row">
+          <div class="vslider-group">
+            <span class="vslider-lbl">Speed</span>
+            <input type="range" class="vslider" id="v-speed" min="0.5" max="2" step="0.1" value="1">
+            <span class="vslider-val" id="v-speed-val">1.0×</span>
+          </div>
+          <div class="vslider-group">
+            <span class="vslider-lbl">Pitch</span>
+            <input type="range" class="vslider" id="v-pitch" min="0.5" max="2" step="0.1" value="1">
+            <span class="vslider-val" id="v-pitch-val">1.0</span>
+          </div>
+          <div class="vslider-group">
+            <span class="vslider-lbl">Volume</span>
+            <input type="range" class="vslider" id="v-volume" min="0" max="1" step="0.05" value="0.9">
+            <span class="vslider-val" id="v-volume-val">0.90</span>
+          </div>
+        </div>
+
+        <!-- Row 3: Action buttons -->
+        <div class="voice-actions">
+          <button class="btn-v" id="btn-v-listen" title="Start / stop listening (Space)">🎤 Listen</button>
+          <button class="btn-v" id="btn-v-mute"   title="Toggle mute (M)">🎙️ Mute</button>
+          <button class="btn-v" id="btn-v-stop-tts"   title="Stop speaking (S)">⏹ Stop Speech</button>
+          <button class="btn-v" id="btn-v-pause-tts"  title="Pause / resume speaking">⏸ Pause</button>
+          <button class="btn-v v-danger" id="btn-v-stop-all" title="Stop everything">✕ Stop All</button>
+          <div class="voice-kbd-hints" style="margin-left:auto">
+            <span><span class="kbd">Space</span> mic</span>
+            <span><span class="kbd">M</span> mute</span>
+            <span><span class="kbd">C</span> continuous</span>
+            <span><span class="kbd">S</span> stop speech</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- /voice-panel -->
+
     <div class="chat-input-area">
       <div class="chat-input-row">
         <div class="chat-input-wrap">
@@ -1126,11 +1442,16 @@
             rows="1"
           ></textarea>
         </div>
+        <!-- Mic toggle button -->
+        <button class="btn-mic" id="btn-mic-toggle" title="Toggle voice interface (Space)">
+          🎤
+          <div class="mic-dot"></div>
+        </button>
         <button class="btn-send" id="btn-send" title="Send (Enter)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
-      <div class="input-hint">Enter to send · Shift+Enter for new line</div>
+      <div class="input-hint">Enter to send · Shift+Enter for new line · 🎤 for voice</div>
     </div>
   </div>
 
@@ -1781,6 +2102,11 @@ async function sendMessage() {
     chatHistory.push(aiMsg);
     saveChat();
     appendBubble(aiMsg);
+    // Voice TTS hook — speak AI response if voice panel is open
+    if (typeof voicePanelOpen !== 'undefined' && voicePanelOpen &&
+        typeof vsAutoSpeak !== 'undefined' && vsAutoSpeak) {
+      voiceSpeakResponse(data.answer);
+    }
     await updateMemBadge();
   } catch (err) {
     typing.remove();
@@ -2211,6 +2537,766 @@ document.getElementById('btn-create-user-tab').addEventListener('click', async (
     renderUsersTab();
   } catch (err) { toast(`Error: ${err.message}`, 'error'); }
 });
+
+// ============================================================
+// VOICE SYSTEM — Web Speech API (STT + TTS) + Web Audio (waveform)
+// ============================================================
+
+// ── Persisted settings ──────────────────────────────────────
+const VS_KEY = 'supernal_voice_v2';
+const VS_DEFAULTS = { voiceURI: '', rate: 1.0, pitch: 1.0, volume: 0.9,
+                      continuous: false, autoSpeak: true };
+let vsSettings = { ...VS_DEFAULTS, ...JSON.parse(localStorage.getItem(VS_KEY) || '{}') };
+function vsSave() {
+  vsSettings = {
+    voiceURI:   document.getElementById('v-voice-sel').value,
+    rate:       parseFloat(document.getElementById('v-speed').value),
+    pitch:      parseFloat(document.getElementById('v-pitch').value),
+    volume:     parseFloat(document.getElementById('v-volume').value),
+    continuous: vsContinuous,
+    autoSpeak:  vsAutoSpeak,
+  };
+  localStorage.setItem(VS_KEY, JSON.stringify(vsSettings));
+}
+
+// ── State ────────────────────────────────────────────────────
+let voicePanelOpen  = false;
+let vsListening     = false;
+let vsSpeaking      = false;
+let vsProcessing    = false;
+let vsMuted         = false;
+let vsContinuous    = vsSettings.continuous;
+let vsAutoSpeak     = vsSettings.autoSpeak !== undefined ? vsSettings.autoSpeak : true;
+let vsSynthPaused   = false;
+let vsRecogActive   = false;
+
+// ── DOM refs ─────────────────────────────────────────────────
+const vsPanel         = document.getElementById('voice-panel');
+const vsBtnMicToggle  = document.getElementById('btn-mic-toggle');
+const vsBtnClose      = document.getElementById('btn-close-voice');
+const vsMicOrb        = document.getElementById('mic-orb');
+const vsStatusDot     = document.getElementById('v-status-dot');
+const vsStatusText    = document.getElementById('v-status-text');
+const vsTranscript    = document.getElementById('v-transcript');
+const vsConfidence    = document.getElementById('v-confidence');
+const vsLiveBadge     = document.getElementById('voice-live-badge');
+const vsContinuousLbl = document.getElementById('v-continuous-label');
+const vsContinuousSw  = document.getElementById('v-continuous-sw');
+const vsVoiceSel      = document.getElementById('v-voice-sel');
+const vsAutoSpeakChk  = document.getElementById('v-auto-speak');
+const vsSpeedSlider   = document.getElementById('v-speed');
+const vsPitchSlider   = document.getElementById('v-pitch');
+const vsVolumeSlider  = document.getElementById('v-volume');
+const vsSpeedVal      = document.getElementById('v-speed-val');
+const vsPitchVal      = document.getElementById('v-pitch-val');
+const vsVolumeVal     = document.getElementById('v-volume-val');
+const vsBtnListen     = document.getElementById('btn-v-listen');
+const vsBtnMute       = document.getElementById('btn-v-mute');
+const vsBtnStopTTS    = document.getElementById('btn-v-stop-tts');
+const vsBtnPauseTTS   = document.getElementById('btn-v-pause-tts');
+const vsBtnStopAll    = document.getElementById('btn-v-stop-all');
+const vsWaveCanvas    = document.getElementById('voice-waveform');
+
+// ── Speech Recognition ────────────────────────────────────────
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let vsRecog = null;
+
+function vsInitRecog() {
+  if (!SpeechRecognitionCtor) return false;
+  vsRecog = new SpeechRecognitionCtor();
+  vsRecog.continuous      = true;
+  vsRecog.interimResults  = true;
+  vsRecog.maxAlternatives = 1;
+  vsRecog.lang            = '';   // browser default / auto-detect
+
+  vsRecog.onstart = () => {
+    vsRecogActive = true;
+    vsListening   = true;
+    vsSetStatus('listening', '🟢 Listening…');
+    vsSetTranscript('Speak now…', 'vt-interim');
+    vsBtnListen.textContent = '⏹ Stop';
+    vsBtnListen.classList.add('v-listen');
+    vsBtnMicToggle.classList.add('mic-listening');
+    vsLiveBadge.classList.add('show');
+    vsMicVisuStart();
+  };
+
+  vsRecog.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) {
+        final += t;
+        const conf = e.results[i][0].confidence;
+        if (conf > 0) vsConfidence.textContent = `Confidence: ${Math.round(conf * 100)}%`;
+      } else {
+        interim += t;
+        // Interruption: if AI is speaking and user speaks > a few chars
+        if (vsSpeaking && interim.length > 4) {
+          voiceStopSpeaking();
+        }
+      }
+    }
+    if (final) {
+      vsSetTranscript(final, 'vt-final');
+      vsFinalTranscript(final.trim());
+    } else if (interim) {
+      vsSetTranscript(interim, 'vt-interim');
+    }
+  };
+
+  vsRecog.onerror = (e) => {
+    vsRecogActive = false;
+    vsListening   = false;
+    vsMicVisuStop();
+    vsBtnListen.textContent = '🎤 Listen';
+    vsBtnListen.classList.remove('v-listen');
+    vsBtnMicToggle.classList.remove('mic-listening');
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      vsSetStatus('', 'Mic blocked');
+      vsSetTranscript('⚠️ Allow microphone access and try again.', 'vt-interim');
+      toast('Microphone permission denied — please allow mic access', 'error');
+    } else if (e.error === 'no-speech') {
+      if (vsContinuous && voicePanelOpen && !vsSpeaking && !vsProcessing) {
+        setTimeout(vsStartListening, 600);
+      } else {
+        vsSetStatus('', 'No speech detected');
+      }
+    } else if (e.error !== 'aborted') {
+      vsSetStatus('', `Error: ${e.error}`);
+    }
+  };
+
+  vsRecog.onend = () => {
+    vsRecogActive = false;
+    vsListening   = false;
+    vsMicVisuStop();
+    vsBtnListen.textContent = '🎤 Listen';
+    vsBtnListen.classList.remove('v-listen');
+    vsBtnMicToggle.classList.remove('mic-listening');
+    vsLiveBadge.classList.remove('show');
+    if (!vsProcessing && !vsSpeaking) {
+      if (vsContinuous && voicePanelOpen && !vsMuted) {
+        setTimeout(() => {
+          if (voicePanelOpen && vsContinuous && !vsSpeaking && !vsProcessing) vsStartListening();
+        }, 700);
+      } else if (voicePanelOpen) {
+        vsSetStatus('', 'Ready');
+        vsSetTranscript('Click the mic or press Space to start…', 'vt-interim');
+      }
+    }
+  };
+  return true;
+}
+
+function vsStartListening() {
+  if (!SpeechRecognitionCtor) {
+    toast('Speech recognition not supported. Use Chrome or Edge.', 'error');
+    return;
+  }
+  if (vsMuted) { toast('Microphone is muted', 'warning'); return; }
+  if (vsRecogActive) { vsRecog.stop(); return; }
+  if (!vsRecog) vsInitRecog();
+  try {
+    vsRecog.start();
+  } catch (err) {
+    if (err.name === 'InvalidStateError') {
+      vsRecog = null;
+      vsInitRecog();
+      setTimeout(() => vsRecog.start(), 100);
+    }
+  }
+}
+
+function vsStopListening() {
+  if (vsRecog && vsRecogActive) vsRecog.stop();
+  vsListening   = false;
+  vsRecogActive = false;
+  vsMicVisuStop();
+  vsBtnListen.textContent = '🎤 Listen';
+  vsBtnListen.classList.remove('v-listen');
+  vsBtnMicToggle.classList.remove('mic-listening');
+  vsLiveBadge.classList.remove('show');
+}
+
+// ── Handle final transcript ───────────────────────────────────
+async function vsFinalTranscript(text) {
+  if (!text) return;
+  if (vsHandleCommand(text)) return;
+
+  // Pause recognition while we process + speak
+  if (vsRecogActive) vsRecog.stop();
+
+  vsSetStatus('processing', '⏳ Processing…');
+  vsProcessing = true;
+  const { orgId, agentId, userId } = ctx;
+
+  if (!orgId || !agentId) {
+    toast('Set context (org + AI employee) first', 'warning');
+    vsProcessing = false;
+    vsResumeLoop();
+    return;
+  }
+  if (!userId) {
+    toast('Set a User ID in the context bar', 'warning');
+    vsProcessing = false;
+    vsResumeLoop();
+    return;
+  }
+
+  // Show in chat
+  chatInput.value = '';
+  autoResizeTextarea(chatInput);
+  btnSend.disabled = true;
+  const userMsg = { role: 'user', content: text, time: new Date().toISOString() };
+  chatHistory.push(userMsg);
+  saveChat();
+  appendBubble(userMsg);
+  const typing = showTyping();
+
+  try {
+    const fd = new FormData();
+    fd.append('organization_id', orgId);
+    fd.append('ai_employee_id',  agentId);
+    fd.append('user_id',         userId);
+    fd.append('question',        text);
+    const r    = await fetch(`${API}/api/chat`, { method: 'POST', body: fd });
+    const data = await r.json();
+    typing.remove();
+    if (!r.ok) throw new Error(data.detail || 'Request failed');
+
+    const aiMsg = {
+      role: 'assistant', content: data.answer,
+      time: new Date().toISOString(),
+      memory_used: data.memory_used,
+      sources: data.sources || []
+    };
+    chatHistory.push(aiMsg);
+    saveChat();
+    appendBubble(aiMsg);
+    await updateMemBadge();
+
+    vsProcessing = false;
+    if (vsAutoSpeak && voicePanelOpen) {
+      voiceSpeakResponse(data.answer);
+    } else {
+      vsSetStatus('', 'Response received');
+      vsResumeLoop();
+    }
+  } catch (err) {
+    typing.remove();
+    vsProcessing = false;
+    toast(`Error: ${err.message}`, 'error');
+    appendBubble({ role: 'assistant', content: `⚠️ ${err.message}`, time: new Date().toISOString() });
+    vsSetStatus('', 'Error — try again');
+    vsResumeLoop();
+  } finally {
+    btnSend.disabled = false;
+    chatInput.focus();
+  }
+}
+
+// ── Speech Synthesis ──────────────────────────────────────────
+let vsCurrentUtterance = null;
+let vsTTSVoices = [];
+
+function vsLoadVoices() {
+  vsTTSVoices = window.speechSynthesis.getVoices();
+  if (vsTTSVoices.length === 0) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      vsTTSVoices = window.speechSynthesis.getVoices();
+      vsPopulateVoices();
+    };
+  } else {
+    vsPopulateVoices();
+  }
+}
+
+function vsPopulateVoices() {
+  if (!vsVoiceSel) return;
+  vsVoiceSel.innerHTML = '';
+  // Sort: Google first, then by language
+  const sorted = [...vsTTSVoices].sort((a, b) => {
+    const aG = a.name.toLowerCase().includes('google') ? 0 : 1;
+    const bG = b.name.toLowerCase().includes('google') ? 0 : 1;
+    if (aG !== bG) return aG - bG;
+    return a.name.localeCompare(b.name);
+  });
+  sorted.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (v.voiceURI === vsSettings.voiceURI) opt.selected = true;
+    vsVoiceSel.appendChild(opt);
+  });
+  // Default to Google US English if nothing saved
+  if (!vsSettings.voiceURI) {
+    const pref = vsTTSVoices.find(v =>
+      v.name === 'Google US English' ||
+      (v.name.toLowerCase().includes('google') && v.lang.startsWith('en'))
+    ) || vsTTSVoices.find(v => v.lang.startsWith('en'));
+    if (pref) vsVoiceSel.value = pref.voiceURI;
+  }
+}
+
+function vsGetVoice() {
+  const uri = vsVoiceSel ? vsVoiceSel.value : '';
+  return vsTTSVoices.find(v => v.voiceURI === uri) || vsTTSVoices[0] || null;
+}
+
+function voiceSpeakResponse(text) {
+  if (!window.speechSynthesis) {
+    vsResumeLoop();
+    return;
+  }
+  // Cancel any in-flight speech
+  window.speechSynthesis.cancel();
+  vsSynthPaused = false;
+
+  // Strip markdown for natural speech
+  const clean = text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[⚠️✅❌🧠📎🎤🤖👤🟢🔵⏳]/g, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .trim();
+
+  if (!clean) { vsResumeLoop(); return; }
+
+  vsCurrentUtterance = new SpeechSynthesisUtterance(clean);
+  vsCurrentUtterance.voice  = vsGetVoice();
+  vsCurrentUtterance.rate   = parseFloat(vsSpeedSlider ? vsSpeedSlider.value : 1);
+  vsCurrentUtterance.pitch  = parseFloat(vsPitchSlider ? vsPitchSlider.value : 1);
+  vsCurrentUtterance.volume = parseFloat(vsVolumeSlider ? vsVolumeSlider.value : 0.9);
+
+  vsCurrentUtterance.onstart = () => {
+    vsSpeaking = true;
+    vsSetStatus('speaking', '🔵 AI Speaking…');
+    vsLiveBadge.classList.add('show');
+    vsMicOrb.textContent = '🔊';
+    vsSpkVisuStart();
+  };
+
+  vsCurrentUtterance.onend = () => {
+    vsSpeaking = false;
+    vsSpkVisuStop();
+    vsLiveBadge.classList.remove('show');
+    vsMicOrb.textContent = '🎤';
+    vsSetStatus('', 'Response complete');
+    vsResumeLoop();
+  };
+
+  vsCurrentUtterance.onerror = (e) => {
+    vsSpeaking = false;
+    vsSpkVisuStop();
+    vsLiveBadge.classList.remove('show');
+    vsMicOrb.textContent = '🎤';
+    if (e.error !== 'interrupted' && e.error !== 'canceled') {
+      vsSetStatus('', `TTS error: ${e.error}`);
+    }
+    vsResumeLoop();
+  };
+
+  window.speechSynthesis.speak(vsCurrentUtterance);
+}
+
+function voiceStopSpeaking() {
+  window.speechSynthesis.cancel();
+  vsSpeaking    = false;
+  vsSynthPaused = false;
+  vsSpkVisuStop();
+  vsLiveBadge.classList.remove('show');
+  vsMicOrb.textContent = '🎤';
+  if (voicePanelOpen) {
+    vsSetStatus('', 'Stopped');
+    vsBtnPauseTTS.textContent = '⏸ Pause';
+  }
+}
+
+function vsTogglePause() {
+  if (!vsSpeaking) return;
+  if (vsSynthPaused) {
+    window.speechSynthesis.resume();
+    vsSynthPaused = false;
+    vsBtnPauseTTS.textContent = '⏸ Pause';
+    vsSetStatus('speaking', '🔵 AI Speaking…');
+  } else {
+    window.speechSynthesis.pause();
+    vsSynthPaused = true;
+    vsBtnPauseTTS.textContent = '▶ Resume';
+    vsSetStatus('speaking', 'Paused');
+  }
+}
+
+// Resume the listen loop after speaking / processing
+function vsResumeLoop() {
+  if (vsContinuous && voicePanelOpen && !vsMuted && !vsProcessing && !vsSpeaking) {
+    setTimeout(() => {
+      if (voicePanelOpen && vsContinuous && !vsSpeaking && !vsProcessing) {
+        vsSetTranscript('Listening…', 'vt-interim');
+        vsStartListening();
+      }
+    }, 700);
+  } else if (voicePanelOpen) {
+    vsSetStatus('', 'Ready');
+    vsSetTranscript('Click the mic or press Space to start…', 'vt-interim');
+  }
+}
+
+// ── Voice Commands ────────────────────────────────────────────
+function vsHandleCommand(text) {
+  const lc = text.toLowerCase().trim();
+
+  // "switch to <user>"
+  const sw = lc.match(/^(?:switch|change)\s+(?:to\s+|user\s+)?(.+)$/);
+  if (sw) {
+    const target = sw[1].trim();
+    const found  = _orgUsers.find(u =>
+      u.user_id.toLowerCase() === target ||
+      (u.name && u.name.toLowerCase() === target)
+    );
+    if (found) {
+      switchToUser(found.user_id);
+      toast(`Switched to ${found.name || found.user_id}`, 'success');
+      voiceSpeakResponse(`Switched to ${found.name || found.user_id}`);
+      return true;
+    }
+  }
+
+  if (lc.includes('show memory') || lc.includes('show my memory') || lc === 'memory') {
+    document.querySelector('[data-tab="memory"]').click();
+    loadMemory();
+    voiceSpeakResponse('Opening your memory');
+    return true;
+  }
+  if (lc.includes('clear memory') || lc.includes('forget everything')) {
+    document.getElementById('btn-clear-memory').click();
+    return true;
+  }
+  if (lc.includes('upload document') || lc.includes('upload file') || lc.includes('show documents')) {
+    document.querySelector('[data-tab="docs"]').click();
+    voiceSpeakResponse('Opening the documents tab. You can upload files there.');
+    return true;
+  }
+  if (lc === 'stop' || lc === 'stop listening' || lc === 'stop recording') {
+    vsStopListening();
+    return true;
+  }
+  if (lc === 'stop speaking' || lc === 'be quiet' || lc === 'shut up') {
+    voiceStopSpeaking();
+    return true;
+  }
+  return false;
+}
+
+// ── Audio Visualization ───────────────────────────────────────
+let vsAudioCtx = null, vsAnalyser = null, vsMicSrc = null, vsMicStream = null;
+let vsWaveRAF  = null, vsSpkRAF   = null;
+
+function vsDpr() { return window.devicePixelRatio || 1; }
+
+function vsResizeCanvas() {
+  const c  = vsWaveCanvas;
+  const dpr = vsDpr();
+  const w   = c.offsetWidth;
+  const h   = c.offsetHeight || 48;
+  c.width   = w * dpr;
+  c.height  = h * dpr;
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, W: w, H: h };
+}
+
+function vsDrawBars(ctx, W, H, values, color) {
+  const count    = values.length;
+  const barW     = Math.max(2, (W / count) - 2);
+  const spacing  = W / count;
+  ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < count; i++) {
+    const v    = Math.max(0.03, values[i]);
+    const barH = v * H * 0.88;
+    const x    = i * spacing;
+    const y    = (H - barH) / 2;
+    ctx.fillStyle = color(v, i, count);
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, barW, barH, Math.min(barW / 2, 3));
+    } else {
+      ctx.rect(x, y, barW, barH);
+    }
+    ctx.fill();
+  }
+}
+
+async function vsMicVisuStart() {
+  vsMicVisuStop();
+  try {
+    vsMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    vsAudioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    vsAnalyser  = vsAudioCtx.createAnalyser();
+    vsAnalyser.fftSize = 256;
+    vsMicSrc = vsAudioCtx.createMediaStreamSource(vsMicStream);
+    vsMicSrc.connect(vsAnalyser);
+    const buf = new Uint8Array(vsAnalyser.frequencyBinCount);
+    const BAR_COUNT = 42;
+
+    function draw() {
+      vsWaveRAF = requestAnimationFrame(draw);
+      vsAnalyser.getByteFrequencyData(buf);
+      const { ctx, W, H } = vsResizeCanvas();
+      const vals = Array.from({ length: BAR_COUNT }, (_, i) => {
+        const idx = Math.floor(i * buf.length / BAR_COUNT);
+        return buf[idx] / 255;
+      });
+      vsDrawBars(ctx, W, H, vals,
+        (v) => `rgba(52,211,153,${0.4 + v * 0.6})`
+      );
+    }
+    draw();
+  } catch {
+    // No mic permission for visualization — draw idle
+    vsDrawIdle();
+  }
+}
+
+function vsMicVisuStop() {
+  if (vsWaveRAF)  { cancelAnimationFrame(vsWaveRAF); vsWaveRAF = null; }
+  if (vsMicSrc)   { try { vsMicSrc.disconnect(); } catch {} vsMicSrc = null; }
+  if (vsMicStream){ vsMicStream.getTracks().forEach(t => t.stop()); vsMicStream = null; }
+  if (vsAudioCtx) { vsAudioCtx.close().catch(() => {}); vsAudioCtx = null; }
+  vsAnalyser = null;
+  if (!vsSpeaking) vsDrawIdle();
+}
+
+function vsSpkVisuStart() {
+  vsSpkVisuStop();
+  let t = 0;
+  const BAR_COUNT = 42;
+  function draw() {
+    vsSpkRAF = requestAnimationFrame(draw);
+    t += 0.07;
+    const { ctx, W, H } = vsResizeCanvas();
+    const vals = Array.from({ length: BAR_COUNT }, (_, i) => {
+      const phase = (i / BAR_COUNT) * Math.PI * 5;
+      return Math.max(0.04, (Math.sin(t + phase) * 0.5 + 0.5) * 0.85 + Math.random() * 0.1);
+    });
+    vsDrawBars(ctx, W, H, vals,
+      (v, i, n) => {
+        const hue = 240 + (i / n) * 60; // indigo → purple gradient
+        return `hsla(${hue},80%,65%,${0.4 + v * 0.6})`;
+      }
+    );
+  }
+  draw();
+}
+
+function vsSpkVisuStop() {
+  if (vsSpkRAF) { cancelAnimationFrame(vsSpkRAF); vsSpkRAF = null; }
+  vsDrawIdle();
+}
+
+function vsDrawIdle() {
+  if (!vsWaveCanvas) return;
+  const { ctx, W, H } = vsResizeCanvas();
+  const BAR_COUNT = 42;
+  const barW = Math.max(2, (W / BAR_COUNT) - 2);
+  const spacing = W / BAR_COUNT;
+  ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const barH = 3;
+    const x    = i * spacing;
+    const y    = (H - barH) / 2;
+    ctx.fillStyle = 'rgba(148,163,184,0.25)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, barW, barH, 2);
+    else ctx.rect(x, y, barW, barH);
+    ctx.fill();
+  }
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function vsSetStatus(type, text) {
+  vsStatusDot.className = 'voice-status-dot' + (type ? ' ' + type : '');
+  vsStatusText.textContent = text;
+  vsMicOrb.className = 'mic-orb' + (type ? ' ' + type : '');
+  // Sync mic toggle button
+  if (type === 'listening') {
+    vsBtnMicToggle.classList.add('mic-listening');
+    vsBtnMicToggle.classList.remove('mic-open');
+  } else if (voicePanelOpen) {
+    vsBtnMicToggle.classList.remove('mic-listening');
+    vsBtnMicToggle.classList.add('mic-open');
+  }
+}
+
+function vsSetTranscript(text, cls) {
+  vsTranscript.innerHTML = `<span class="${cls}">${escapeHtml(text)}</span>`;
+}
+
+// ── Open / Close panel ────────────────────────────────────────
+function vsOpenPanel() {
+  voicePanelOpen = true;
+  vsPanel.style.display = 'block';
+  vsBtnMicToggle.classList.add('mic-open');
+  vsBtnMicToggle.title = 'Close voice panel';
+
+  // Apply saved settings
+  vsSpeedSlider.value  = vsSettings.rate;
+  vsPitchSlider.value  = vsSettings.pitch;
+  vsVolumeSlider.value = vsSettings.volume;
+  vsSpeedVal.textContent  = parseFloat(vsSettings.rate).toFixed(1) + '×';
+  vsPitchVal.textContent  = parseFloat(vsSettings.pitch).toFixed(1);
+  vsVolumeVal.textContent = parseFloat(vsSettings.volume).toFixed(2);
+  vsAutoSpeakChk.checked  = vsAutoSpeak;
+  if (vsContinuous) vsContinuousSw.classList.add('on');
+  else              vsContinuousSw.classList.remove('on');
+
+  vsLoadVoices();
+  vsSetStatus('', 'Ready');
+  vsSetTranscript('Click the mic or press Space to start…', 'vt-interim');
+  vsConfidence.textContent = '';
+
+  if (!SpeechRecognitionCtor) {
+    vsSetTranscript('⚠️ Speech recognition requires Chrome, Edge, or Safari.', 'vt-interim');
+    vsBtnListen.disabled = true;
+    vsMicOrb.style.opacity = '0.4';
+    vsMicOrb.style.cursor = 'not-allowed';
+  }
+
+  // Redraw idle waveform once canvas has size
+  setTimeout(vsDrawIdle, 50);
+
+  if (vsContinuous) {
+    setTimeout(vsStartListening, 400);
+  }
+}
+
+function vsClosePanel() {
+  voicePanelOpen = false;
+  vsStopListening();
+  voiceStopSpeaking();
+  vsPanel.style.display = 'none';
+  vsBtnMicToggle.classList.remove('mic-open', 'mic-listening');
+  vsBtnMicToggle.title = 'Toggle voice interface (Space)';
+}
+
+// ── Button wiring ─────────────────────────────────────────────
+vsBtnMicToggle.addEventListener('click', () => {
+  if (voicePanelOpen) vsClosePanel();
+  else vsOpenPanel();
+});
+vsBtnClose.addEventListener('click', vsClosePanel);
+
+vsMicOrb.addEventListener('click', () => {
+  if (vsListening) vsStopListening();
+  else vsStartListening();
+});
+
+vsBtnListen.addEventListener('click', () => {
+  if (vsListening) vsStopListening();
+  else vsStartListening();
+});
+
+vsBtnMute.addEventListener('click', () => {
+  vsMuted = !vsMuted;
+  if (vsMuted) {
+    vsStopListening();
+    vsBtnMute.textContent = '🔇 Unmute';
+    vsBtnMute.classList.add('v-muted');
+    toast('Mic muted', 'info');
+  } else {
+    vsBtnMute.textContent = '🎙️ Mute';
+    vsBtnMute.classList.remove('v-muted');
+    toast('Mic unmuted', 'info');
+  }
+});
+
+vsBtnStopTTS.addEventListener('click',   voiceStopSpeaking);
+vsBtnPauseTTS.addEventListener('click',  vsTogglePause);
+vsBtnStopAll.addEventListener('click', () => {
+  vsStopListening();
+  voiceStopSpeaking();
+  vsProcessing = false;
+  vsSetStatus('', 'All stopped');
+  vsSetTranscript('Voice activity stopped. Click mic to restart.', 'vt-interim');
+});
+
+// Continuous mode toggle
+vsContinuousLbl.addEventListener('click', () => {
+  vsContinuous = !vsContinuous;
+  if (vsContinuous) {
+    vsContinuousSw.classList.add('on');
+    toast('Continuous mode ON — hands-free loop active', 'success');
+    if (voicePanelOpen && !vsListening && !vsSpeaking && !vsProcessing) vsStartListening();
+  } else {
+    vsContinuousSw.classList.remove('on');
+    toast('Continuous mode OFF', 'info');
+  }
+  vsSave();
+});
+
+// Voice / slider changes
+vsVoiceSel.addEventListener('change', vsSave);
+vsSpeedSlider.addEventListener('input', () => {
+  vsSpeedVal.textContent = parseFloat(vsSpeedSlider.value).toFixed(1) + '×';
+  vsSave();
+});
+vsPitchSlider.addEventListener('input', () => {
+  vsPitchVal.textContent = parseFloat(vsPitchSlider.value).toFixed(1);
+  vsSave();
+});
+vsVolumeSlider.addEventListener('input', () => {
+  vsVolumeVal.textContent = parseFloat(vsVolumeSlider.value).toFixed(2);
+  vsSave();
+});
+vsAutoSpeakChk.addEventListener('change', () => {
+  vsAutoSpeak = vsAutoSpeakChk.checked;
+  vsSave();
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Ignore when user is typing
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (!voicePanelOpen) vsOpenPanel();
+    if (vsListening) vsStopListening();
+    else vsStartListening();
+  } else if ((e.key === 'm' || e.key === 'M') && voicePanelOpen) {
+    vsBtnMute.click();
+  } else if ((e.key === 'c' || e.key === 'C') && voicePanelOpen) {
+    vsContinuousLbl.click();
+  } else if ((e.key === 's' || e.key === 'S') && voicePanelOpen && vsSpeaking) {
+    voiceStopSpeaking();
+  }
+});
+
+// ── Keep SpeechSynthesis alive (Chrome workaround) ────────────
+// Chrome pauses synthesis after ~15s — this heartbeat prevents that
+let vsTTSHeartbeat = null;
+function vsStartHeartbeat() {
+  if (vsTTSHeartbeat) return;
+  vsTTSHeartbeat = setInterval(() => {
+    if (vsSpeaking && !vsSynthPaused) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }
+  }, 12000);
+}
+vsStartHeartbeat();
+
+// ── Resize observer — redraw canvas on panel resize ───────────
+if (window.ResizeObserver && vsWaveCanvas) {
+  new ResizeObserver(() => {
+    if (!vsSpeaking && !vsListening) vsDrawIdle();
+  }).observe(vsWaveCanvas);
+}
 
 </script>
 </body>
