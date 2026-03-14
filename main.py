@@ -22,6 +22,7 @@ from db import (
     assign_ai_employee_to_user, get_user_assigned_ai_employees,
     # Users
     create_user, get_user, get_org_users, get_or_create_user,
+    delete_user,
     # Conversations / memory
     get_user_ai_employee_memory, clear_user_ai_employee_memory,
     # Documents
@@ -177,6 +178,16 @@ async def list_users(org_id: str):
     return {"users": get_org_users(org_id), "organization": org}
 
 
+@app.delete("/api/user/{user_id}")
+async def delete_user_endpoint(user_id: str):
+    """Delete a user and all their conversation history"""
+    user = get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    success = delete_user(user_id)
+    return {"status": "success" if success else "failed"}
+
+
 @app.post("/api/assign-ai-employee")
 async def assign_agent(body: AssignAIEmployee):
     """Assign an AI employee to a user"""
@@ -323,7 +334,18 @@ async def chat(
         if not question.strip():
             raise HTTPException(status_code=400, detail="Empty question")
 
-        require_valid_hierarchy(organization_id, ai_employee_id, user_id)
+        # Validate org + agent; auto-create user in this org if new
+        org = get_organization(organization_id)
+        if not org:
+            raise HTTPException(status_code=422, detail=f"Organization not found")
+        agent = get_ai_employee(ai_employee_id)
+        if not agent or agent.get("organization_id") != organization_id:
+            raise HTTPException(status_code=422, detail="AI employee not found in this organization")
+        user = get_or_create_user(organization_id, user_id)
+        if not user:
+            raise HTTPException(status_code=500, detail="Failed to create/retrieve user")
+        if user.get("organization_id") != organization_id:
+            raise HTTPException(status_code=422, detail=f"User '{user_id}' belongs to a different organization")
 
         result = answer_question(organization_id, ai_employee_id, user_id, question)
 

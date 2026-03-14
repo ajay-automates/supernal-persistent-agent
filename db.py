@@ -184,6 +184,16 @@ def get_or_create_user(organization_id: str, user_id: str, name: str = "", email
     return create_user(organization_id, user_id, name, email)
 
 
+def delete_user(user_id: str) -> bool:
+    """Delete a user and their conversation history (cascades via FK)"""
+    try:
+        supabase.table("users").delete().eq("user_id", user_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error deleting user: {e}")
+        return False
+
+
 # ============================================================
 # CONVERSATIONS  (triple-keyed: org + ai_employee + user)
 # ============================================================

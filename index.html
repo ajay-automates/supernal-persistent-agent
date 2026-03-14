@@ -803,6 +803,43 @@
     }
 
     /* ============================================================
+       USERS TAB
+    ============================================================ */
+    #tab-users { display: none; flex-direction: column; overflow: hidden; }
+    #tab-users.active { display: flex; }
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      transition: border-color .2s;
+    }
+    .user-card:hover { border-color: var(--primary); }
+    .user-card.active-user { border-color: var(--primary); background: rgba(99,102,241,.06); }
+    .uc-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .uc-info { flex: 1; min-width: 0; }
+    .uc-name { font-weight: 600; font-size: 14px; }
+    .uc-uid  { font-size: 12px; color: var(--text-2); font-family: monospace; }
+    .uc-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+    .uc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .uc-badge {
+      padding: 2px 8px; border-radius: 99px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(16,185,129,.15); color: #34d399;
+      border: 1px solid rgba(16,185,129,.3);
+    }
+
+    /* ============================================================
        USER SWITCHER
     ============================================================ */
     .user-switcher {
@@ -990,6 +1027,9 @@
     <button class="tab-btn" data-tab="memory">
       🧠 Memory <span class="tab-badge" id="mem-badge" style="display:none">0</span>
     </button>
+    <button class="tab-btn" data-tab="users">
+      👥 Users
+    </button>
   </div>
 
   <!-- ============================================================
@@ -1011,11 +1051,25 @@
     </div>
     <span class="ctx-arrow">›</span>
     <div class="ctx-slot">
-      <label class="ctx-label">👤 User ID</label>
-      <input class="ctx-input" id="ctx-user-inp" type="text" placeholder="e.g. ajay" autocomplete="off" />
+      <label class="ctx-label">👤 User</label>
+      <div style="display:flex;gap:4px;align-items:flex-end">
+        <select class="ctx-select" id="ctx-user-sel" disabled style="min-width:150px">
+          <option value="">Select org first</option>
+        </select>
+        <button id="ctx-add-user-btn" class="btn btn-secondary" style="height:32px;padding:0 10px;font-size:16px;flex-shrink:0" title="Create new user">＋</button>
+      </div>
     </div>
     <button class="btn btn-primary btn-sm" id="ctx-apply-btn" style="margin-top:14px">Set Context</button>
     <div class="ctx-active-banner" id="ctx-active-banner" style="display:none"></div>
+  </div>
+
+  <!-- New-user inline panel (hidden by default) -->
+  <div id="ctx-new-user-panel" style="display:none;align-items:center;gap:8px;padding:8px 24px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-wrap:wrap">
+    <span style="font-size:12px;font-weight:600;color:var(--text-2)">New User:</span>
+    <input class="ctx-input" id="ctx-new-uid" placeholder="user_id  (e.g. ajay)" style="width:150px" autocomplete="off" />
+    <input class="ctx-input" id="ctx-new-name" placeholder="Display name (optional)" style="width:170px" autocomplete="off" />
+    <button class="btn btn-primary btn-sm" id="ctx-create-user-btn">Create &amp; Select</button>
+    <button class="btn btn-secondary btn-sm" id="ctx-cancel-user-btn">Cancel</button>
   </div>
 
   <!-- ============================================================
@@ -1176,6 +1230,44 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       USERS TAB
+  ============================================================ -->
+  <div class="tab-content" id="tab-users">
+    <div class="user-bar" style="justify-content:space-between">
+      <span id="users-org-label" style="font-size:13px;color:var(--text-2)">Select an organization in the context bar</span>
+      <button class="btn btn-primary btn-sm" id="btn-show-create-user">＋ Create User</button>
+    </div>
+
+    <!-- Inline create user form -->
+    <div id="users-create-panel" style="display:none;padding:14px 20px;background:var(--surface-2);border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:3px">USER ID *</label>
+          <input class="ctx-input" id="new-user-uid" placeholder="e.g. dexter" style="width:160px" autocomplete="off" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:3px">DISPLAY NAME</label>
+          <input class="ctx-input" id="new-user-name" placeholder="e.g. Dexter Morgan" style="width:200px" autocomplete="off" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-3);display:block;margin-bottom:3px">EMAIL</label>
+          <input class="ctx-input" id="new-user-email" placeholder="e.g. dexter@company.com" style="width:220px" autocomplete="off" />
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-create-user-tab">Create User</button>
+        <button class="btn btn-secondary btn-sm" id="btn-cancel-create-user">Cancel</button>
+      </div>
+    </div>
+
+    <!-- User list -->
+    <div id="users-list" style="padding:16px 20px;flex:1;overflow-y:auto">
+      <div id="users-empty" style="text-align:center;padding:40px;color:var(--text-3)">
+        <div style="font-size:40px;margin-bottom:8px">👥</div>
+        <p>No users yet. Create one or select an organization.</p>
+      </div>
+    </div>
+  </div>
+
 </div><!-- #app -->
 
 <!-- Toast container -->
@@ -1211,6 +1303,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'docs')   { loadDocs(); loadStats(); }
     if (btn.dataset.tab === 'memory') { loadMemory(); }
+    if (btn.dataset.tab === 'users')  { renderUsersTab(); }
   });
 });
 
@@ -1266,7 +1359,9 @@ async function fetchOrgs() {
       orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
     if (ctx.orgId) {
       sel.value = ctx.orgId;
-      if (sel.value) await fetchAgents(ctx.orgId);
+      if (sel.value) {
+        await Promise.all([fetchAgents(ctx.orgId), fetchUsers(ctx.orgId)]);
+      }
     }
   } catch {
     sel.innerHTML = '<option value="">Failed to load orgs</option>';
@@ -1291,32 +1386,65 @@ async function fetchAgents(orgId) {
   }
 }
 
+// ---- Users dropdown in context bar ----
+let _orgUsers = []; // cache for current org's users
+
+async function fetchUsers(orgId) {
+  const sel = document.getElementById('ctx-user-sel');
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const r = await fetch(`${API}/api/users/${orgId}`);
+    const data = await r.json();
+    _orgUsers = data.users || [];
+    populateUserDropdown();
+    sel.disabled = false;
+    if (ctx.userId) sel.value = ctx.userId;
+  } catch {
+    sel.innerHTML = '<option value="">Failed to load users</option>';
+    sel.disabled = false;
+  }
+}
+
+function populateUserDropdown() {
+  const sel = document.getElementById('ctx-user-sel');
+  sel.innerHTML = '<option value="">— Select User —</option>' +
+    _orgUsers.map(u => {
+      const label = u.name ? `${escapeHtml(u.name)} (${escapeHtml(u.user_id)})` : escapeHtml(u.user_id);
+      return `<option value="${escapeHtml(u.user_id)}">${label}</option>`;
+    }).join('');
+}
+
 document.getElementById('ctx-org-sel').addEventListener('change', async (e) => {
   const orgId   = e.target.value;
   const orgName = e.target.options[e.target.selectedIndex]?.text || '';
   ctx.orgId = orgId; ctx.orgName = orgName;
   ctx.agentId = ''; ctx.agentName = ''; ctx.agentRole = '';
+  ctx.userId = '';
   updateCtxBanner();
   if (orgId) {
-    await fetchAgents(orgId);
+    await Promise.all([fetchAgents(orgId), fetchUsers(orgId)]);
   } else {
     const agSel = document.getElementById('ctx-agent-sel');
     agSel.innerHTML = '<option value="">Select org first</option>';
     agSel.disabled = true;
+    const uSel = document.getElementById('ctx-user-sel');
+    uSel.innerHTML = '<option value="">Select org first</option>';
+    uSel.disabled = true;
+    _orgUsers = [];
   }
 });
 
 document.getElementById('ctx-apply-btn').addEventListener('click', applyContext);
-document.getElementById('ctx-user-inp').addEventListener('keydown', e => { if (e.key === 'Enter') applyContext(); });
 
 function applyContext() {
   const orgSel  = document.getElementById('ctx-org-sel');
   const agSel   = document.getElementById('ctx-agent-sel');
-  const userInp = document.getElementById('ctx-user-inp');
+  const userSel = document.getElementById('ctx-user-sel');
 
-  if (!orgSel.value)       { toast('Select an organization',  'warning'); return; }
-  if (!agSel.value)        { toast('Select an AI employee',   'warning'); return; }
-  if (!userInp.value.trim()) { toast('Enter a User ID',       'warning'); return; }
+  if (!orgSel.value)  { toast('Select an organization', 'warning'); return; }
+  if (!agSel.value)   { toast('Select an AI employee',  'warning'); return; }
+  if (!userSel.value) { toast('Select a user (or create one with ＋)', 'warning'); return; }
 
   ctx.orgId    = orgSel.value;
   ctx.orgName  = orgSel.options[orgSel.selectedIndex]?.text || '';
@@ -1324,12 +1452,11 @@ function applyContext() {
   const agTxt  = agSel.options[agSel.selectedIndex]?.text || '';
   ctx.agentName = agTxt.split(' (')[0] || agTxt;
   ctx.agentRole = (agTxt.match(/\((.+)\)/) || [])[1] || '';
-  ctx.userId   = userInp.value.trim();
+  ctx.userId   = userSel.value;
   saveCtx();
 
   addRecentUser(ctx.userId);
   updateCurrentUserUI(ctx.userId);
-  // sync chat-uid hidden input (used by user-bar)
   document.getElementById('chat-uid').value = ctx.userId;
 
   chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
@@ -1337,6 +1464,41 @@ function applyContext() {
   updateCtxBanner();
   toast(`Context: ${ctx.orgName} › ${ctx.agentName} › ${ctx.userId}`, 'success', 3000);
 }
+
+// ---- New-user inline panel (context bar "+ button") ----
+document.getElementById('ctx-add-user-btn').addEventListener('click', () => {
+  if (!ctx.orgId) { toast('Select an organization first', 'warning'); return; }
+  const panel = document.getElementById('ctx-new-user-panel');
+  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  if (panel.style.display === 'flex') document.getElementById('ctx-new-uid').focus();
+});
+document.getElementById('ctx-cancel-user-btn').addEventListener('click', () => {
+  document.getElementById('ctx-new-user-panel').style.display = 'none';
+  document.getElementById('ctx-new-uid').value = '';
+  document.getElementById('ctx-new-name').value = '';
+});
+document.getElementById('ctx-create-user-btn').addEventListener('click', async () => {
+  const uid  = document.getElementById('ctx-new-uid').value.trim();
+  const name = document.getElementById('ctx-new-name').value.trim();
+  if (!uid) { toast('Enter a user_id', 'warning'); return; }
+  if (!ctx.orgId) { toast('Select an org first', 'warning'); return; }
+  try {
+    const r = await fetch(`${API}/api/user`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ organization_id: ctx.orgId, user_id: uid, name })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to create user');
+    document.getElementById('ctx-new-user-panel').style.display = 'none';
+    document.getElementById('ctx-new-uid').value = '';
+    document.getElementById('ctx-new-name').value = '';
+    await fetchUsers(ctx.orgId);
+    document.getElementById('ctx-user-sel').value = uid;
+    toast(`User "${uid}" created`, 'success');
+    renderUsersTab();
+  } catch (err) { toast(`Error: ${err.message}`, 'error'); }
+});
 
 function updateCtxBanner() {
   const banner = document.getElementById('ctx-active-banner');
@@ -1355,9 +1517,9 @@ function updateCtxBanner() {
 
 // Init context bar on load
 (async () => {
-  await fetchOrgs();
+  await fetchOrgs();  // also restores agents + users if ctx.orgId exists
   if (ctx.userId) {
-    document.getElementById('ctx-user-inp').value = ctx.userId;
+    document.getElementById('ctx-user-sel').value = ctx.userId;
     document.getElementById('chat-uid').value = ctx.userId;
     addRecentUser(ctx.userId);
     updateCurrentUserUI(ctx.userId);
@@ -1458,7 +1620,7 @@ function switchToUser(uid) {
 
   ctx.userId = uid;
   saveCtx();
-  document.getElementById('ctx-user-inp').value = uid;
+  document.getElementById('ctx-user-sel').value = uid;
   document.getElementById('chat-uid').value = uid;
   addRecentUser(uid);
   updateCurrentUserUI(uid);
@@ -1502,7 +1664,7 @@ document.getElementById('ud-new-user').addEventListener('click', () => {
   if (ctx.userId) addRecentUser(ctx.userId);
   ctx.userId = '';
   saveCtx();
-  document.getElementById('ctx-user-inp').value = '';
+  document.getElementById('ctx-user-sel').value = '';
   document.getElementById('chat-uid').value = '';
   updateCurrentUserUI('');
   updateCtxBanner();
@@ -1935,6 +2097,120 @@ function downloadText(filename, text) {
   a.download = filename;
   a.click();
 }
+
+// ============================================================
+// USERS TAB
+// ============================================================
+
+function renderUsersTab() {
+  const { orgId, orgName } = ctx;
+  const label  = document.getElementById('users-org-label');
+  const list   = document.getElementById('users-list');
+  const empty  = document.getElementById('users-empty');
+
+  if (!orgId) {
+    label.textContent = 'Select an organization in the context bar';
+    list.querySelectorAll('.user-card').forEach(n => n.remove());
+    empty.style.display = '';
+    return;
+  }
+
+  label.innerHTML = `Users in <strong>${escapeHtml(orgName)}</strong> — ${_orgUsers.length} total`;
+  list.querySelectorAll('.user-card').forEach(n => n.remove());
+
+  if (_orgUsers.length === 0) {
+    empty.style.display = '';
+    empty.innerHTML = `<div style="font-size:40px;margin-bottom:8px">👥</div><p>No users yet. Click <strong>＋ Create User</strong> to add one.</p>`;
+    return;
+  }
+  empty.style.display = 'none';
+
+  _orgUsers.forEach(u => {
+    const card = document.createElement('div');
+    const isActive = u.user_id === ctx.userId;
+    card.className = `user-card${isActive ? ' active-user' : ''}`;
+    const color   = getAvatarColor(u.user_id);
+    const initial = getAvatarInitial(u.user_id);
+    const date    = u.created_at ? new Date(u.created_at).toLocaleDateString() : '';
+    card.innerHTML = `
+      <div class="uc-avatar" style="background:${color}">${initial}</div>
+      <div class="uc-info">
+        <div class="uc-name">${u.name ? escapeHtml(u.name) : escapeHtml(u.user_id)}</div>
+        <div class="uc-uid">${escapeHtml(u.user_id)}</div>
+        <div class="uc-meta">Created ${date}${u.email ? ' · ' + escapeHtml(u.email) : ''}</div>
+      </div>
+      ${isActive ? '<span class="uc-badge">Active</span>' : ''}
+      <div class="uc-actions">
+        <button class="btn btn-secondary btn-sm" onclick="selectUserFromTab('${escapeHtml(u.user_id)}')">Select</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUserFromTab('${escapeHtml(u.user_id)}')">Delete</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function selectUserFromTab(uid) {
+  if (!ctx.agentId) { toast('Select an AI employee in the context bar first', 'warning'); return; }
+  switchToUser(uid);
+  // Switch to Chat tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="chat"]').classList.add('active');
+  document.getElementById('tab-chat').classList.add('active');
+  renderUsersTab();
+}
+
+async function deleteUserFromTab(uid) {
+  if (!confirm(`Delete user "${uid}" and ALL their conversation history? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`${API}/api/user/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Failed');
+    toast(`User "${uid}" deleted`, 'success');
+    // If deleted user was active, clear context user
+    if (ctx.userId === uid) {
+      ctx.userId = ''; saveCtx();
+      document.getElementById('ctx-user-sel').value = '';
+      document.getElementById('chat-uid').value = '';
+      updateCurrentUserUI('');
+      updateCtxBanner();
+      chatHistory = []; saveChat(); renderChat();
+    }
+    await fetchUsers(ctx.orgId);
+    renderUsersTab();
+  } catch (err) { toast(`Error: ${err.message}`, 'error'); }
+}
+
+// Users tab — create user form
+document.getElementById('btn-show-create-user').addEventListener('click', () => {
+  const panel = document.getElementById('users-create-panel');
+  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  if (panel.style.display === 'flex') document.getElementById('new-user-uid').focus();
+});
+document.getElementById('btn-cancel-create-user').addEventListener('click', () => {
+  document.getElementById('users-create-panel').style.display = 'none';
+});
+document.getElementById('btn-create-user-tab').addEventListener('click', async () => {
+  const uid   = document.getElementById('new-user-uid').value.trim();
+  const name  = document.getElementById('new-user-name').value.trim();
+  const email = document.getElementById('new-user-email').value.trim();
+  if (!uid)        { toast('User ID is required', 'warning'); return; }
+  if (!ctx.orgId)  { toast('Select an organization in the context bar first', 'warning'); return; }
+  try {
+    const r = await fetch(`${API}/api/user`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ organization_id: ctx.orgId, user_id: uid, name, email })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to create user');
+    toast(`User "${uid}" created`, 'success');
+    document.getElementById('users-create-panel').style.display = 'none';
+    document.getElementById('new-user-uid').value = '';
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-email').value = '';
+    await fetchUsers(ctx.orgId);
+    renderUsersTab();
+  } catch (err) { toast(`Error: ${err.message}`, 'error'); }
+});
 
 </script>
 </body>
