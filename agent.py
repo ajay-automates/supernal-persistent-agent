@@ -4,6 +4,7 @@ Pipeline: retrieve org docs → load user+agent memory → generate → save
 """
 
 from config import OPENAI_API_KEY, LANGSMITH_API_KEY
+from tools import route_tool_call  # rich mock implementations
 from db import (
     get_or_create_user, save_message,
     get_user_ai_employee_memory, search_organization_chunks,
@@ -317,84 +318,7 @@ def answer_question(
 # TOOL EXECUTION
 # ============================================================
 
-def route_tool_call(tool_name: str, params: dict) -> dict:
-    """
-    Route a tool call to its executor.
-    Returns a result dict. All implementations are production-ready stubs
-    that can be swapped out for real integrations.
-    """
-    if tool_name == "send_email":
-        to = params.get("to", "")
-        subject = params.get("subject", "")
-        body = params.get("body", "")
-        return {
-            "status": "sent",
-            "message_id": str(uuid.uuid4()),
-            "to": to,
-            "subject": subject,
-            "note": f"Email sent to {to} with subject '{subject}'"
-        }
-
-    elif tool_name == "create_ticket":
-        customer = params.get("customer", "")
-        issue = params.get("issue", "")
-        priority = params.get("priority", "medium")
-        return {
-            "status": "created",
-            "ticket_id": f"TKT-{str(uuid.uuid4())[:8].upper()}",
-            "customer": customer,
-            "issue": issue,
-            "priority": priority
-        }
-
-    elif tool_name == "query_crm":
-        customer_id = params.get("customer_id", "")
-        return {
-            "customer_id": customer_id,
-            "name": "Sample Customer",
-            "email": "customer@example.com",
-            "plan": "Pro",
-            "status": "active",
-            "since": "2024-01-15"
-        }
-
-    elif tool_name == "search_web":
-        query = params.get("query", "")
-        return {
-            "query": query,
-            "results": [
-                {"title": f"Result 1 for '{query}'", "url": "https://example.com/1", "snippet": "Relevant information..."},
-                {"title": f"Result 2 for '{query}'", "url": "https://example.com/2", "snippet": "More details..."},
-            ]
-        }
-
-    elif tool_name == "update_database":
-        table = params.get("table", "")
-        record_id = params.get("record_id", "")
-        data = params.get("data", {})
-        return {
-            "status": "updated",
-            "table": table,
-            "record_id": record_id,
-            "fields_updated": list(data.keys())
-        }
-
-    elif tool_name == "add_calendar_event":
-        user = params.get("user", "")
-        date = params.get("date", "")
-        time_val = params.get("time", "")
-        description = params.get("description", "")
-        return {
-            "status": "created",
-            "event_id": str(uuid.uuid4()),
-            "user": user,
-            "date": date,
-            "time": time_val,
-            "description": description
-        }
-
-    else:
-        return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+# route_tool_call is imported from tools.py above
 
 
 def _extract_tool_call(response_text: str) -> Optional[dict]:

@@ -16,6 +16,7 @@ from openai import OpenAI
 
 from config import OPENAI_API_KEY
 from agent import answer_question_with_tools, stream_answer_with_tools
+import demo_setup
 from db import (
     # Organization
     create_organization, get_organization, list_organizations,
@@ -625,6 +626,20 @@ async def get_dashboard(organization_id: str):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "2.0.0", "service": "Supernal Persistent Agent"}
+
+
+# ============================================================
+# DEMO SETUP ENDPOINT
+# ============================================================
+
+@app.post("/api/demo/setup")
+async def run_demo_setup():
+    """Seed the database with Amazon, Stripe, and TechVentus demo data."""
+    try:
+        result = demo_setup.run()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
