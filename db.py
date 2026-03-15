@@ -9,6 +9,18 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import uuid as _uuid
 
+ROLE_NAME_ALIASES = {
+    "Sales Development Representative": "Sales Development Rep (SDR)",
+    "SDR": "Sales Development Rep (SDR)",
+    "Level 1 Customer Support": "Customer Support Agent",
+    "Technical Support Engineer": "Customer Support Agent",
+    "Account Manager": "Sales Development Rep (SDR)",
+}
+
+
+def _normalize_role_name(role_name: str) -> str:
+    return ROLE_NAME_ALIASES.get(role_name, role_name)
+
 
 # ============================================================
 # ORGANIZATIONS
@@ -63,10 +75,13 @@ def list_organizations() -> List[Dict]:
 
 def create_ai_employee(organization_id: str, name: str, role: str, job_description: str = "") -> Optional[Dict]:
     try:
+        normalized_role = _normalize_role_name(role)
+        role_id = get_role_id_by_name(normalized_role)
         response = supabase.table("ai_employees").insert({
             "organization_id": organization_id,
             "name": name,
-            "role": role,
+            "role": normalized_role,
+            "role_id": role_id,
             "job_description": job_description,
             "created_at": datetime.utcnow().isoformat()
         }).execute()
@@ -99,15 +114,27 @@ def get_ai_employee(ai_employee_id: str) -> Optional[Dict]:
 
 
 def assign_ai_employee_to_user(user_id: str, ai_employee_id: str) -> bool:
-    """Add an ai_employee_id to the user's assigned_ai_employees JSONB array"""
+    """Assign an AI employee to a user in both normalized and legacy stores."""
     try:
-        user_resp = supabase.table("users").select("assigned_ai_employees").eq("user_id", user_id).execute()
+        user_resp = supabase.table("users").select(
+            "organization_id, assigned_ai_employees"
+        ).eq("user_id", user_id).execute()
         if not user_resp.data:
             return False
+        organization_id = user_resp.data[0]["organization_id"]
         assigned = user_resp.data[0].get("assigned_ai_employees") or []
         if ai_employee_id not in assigned:
             assigned.append(ai_employee_id)
             supabase.table("users").update({"assigned_ai_employees": assigned}).eq("user_id", user_id).execute()
+        try:
+            supabase.table("user_ai_employee_assignments").insert({
+                "organization_id": organization_id,
+                "user_id": user_id,
+                "ai_employee_id": ai_employee_id,
+                "assigned_at": datetime.utcnow().isoformat(),
+            }).execute()
+        except Exception:
+            pass
         return True
     except Exception as e:
         print(f"Error assigning AI employee: {e}")
@@ -115,14 +142,22 @@ def assign_ai_employee_to_user(user_id: str, ai_employee_id: str) -> bool:
 
 
 def get_user_assigned_ai_employees(user_id: str) -> List[Dict]:
-    """Return full AI employee records assigned to a user"""
+    """Return full AI employee records assigned to a user."""
     try:
+        assignment_resp = supabase.table("user_ai_employee_assignments").select(
+            "ai_employee_id"
+        ).eq("user_id", user_id).execute()
+        assignment_ids = [row["ai_employee_id"] for row in (assignment_resp.data or [])]
+
         user_resp = supabase.table("users").select("assigned_ai_employees").eq("user_id", user_id).execute()
-        if not user_resp.data:
-            return []
-        ids = user_resp.data[0].get("assigned_ai_employees") or []
+        legacy_ids = []
+        if user_resp.data:
+            legacy_ids = user_resp.data[0].get("assigned_ai_employees") or []
+
+        ids = list(dict.fromkeys(assignment_ids + legacy_ids))
         if not ids:
             return []
+
         response = supabase.table("ai_employees").select("*").in_("id", ids).execute()
         return response.data if response.data else []
     except Exception as e:
@@ -193,6 +228,153 @@ def delete_user(user_id: str) -> bool:
     except Exception as e:
         print(f"Error deleting user: {e}")
         return False
+
+
+# ============================================================
+# RBAC
+# ============================================================
+
+def get_role_id_by_name(role_name: str) -> Optional[str]:
+    """Get role UUID by canonical role name."""
+    try:
+        normalized_role = _normalize_role_name(role_name)
+        result = supabase.table("ai_employee_roles").select("id").eq(
+            "role_name", normalized_role
+        ).execute()
+        return result.data[0]["id"] if result.data else None
+    except Exception as e:
+        print(f"Error getting role ID: {e}")
+        return None
+
+
+def get_ai_employee_by_id(ai_employee_id: str, organization_id: str) -> Optional[Dict]:
+    """Get AI employee by ID within an organization."""
+    try:
+        result = supabase.table("ai_employees").select("*").eq(
+            "id", ai_employee_id
+        ).eq("organization_id", organization_id).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        print(f"Error getting AI employee by ID: {e}")
+        return None
+
+
+def get_allowed_tools_for_role(role_id: str) -> List[str]:
+    """Return allowed tool names for a role."""
+    try:
+        result = supabase.table("role_tool_permissions").select("tool_name").eq(
+            "role_id", role_id
+        ).eq("allowed", True).execute()
+        return [item["tool_name"] for item in (result.data or [])]
+    except Exception as e:
+        print(f"Error getting allowed tools for role: {e}")
+        return []
+
+
+def get_role_permissions(role_id: str) -> List[Dict]:
+    """Return all permission rows for a role."""
+    try:
+        result = supabase.table("role_tool_permissions").select(
+            "tool_name, allowed, reason"
+        ).eq("role_id", role_id).order("tool_name").execute()
+        return result.data or []
+    except Exception as e:
+        print(f"Error getting role permissions: {e}")
+        return []
+
+
+def log_access_attempt(
+    organization_id: str,
+    user_id: str,
+    ai_employee_id: str,
+    tool_name: str,
+    allowed: bool,
+    reason: str = None,
+) -> bool:
+    """Log a tool access allow/deny decision."""
+    try:
+        supabase.table("tool_access_attempts").insert({
+            "organization_id": organization_id,
+            "user_id": user_id,
+            "ai_employee_id": ai_employee_id,
+            "tool_name": tool_name,
+            "allowed": allowed,
+            "reason": reason,
+            "attempted_at": datetime.utcnow().isoformat(),
+        }).execute()
+        return True
+    except Exception as e:
+        print(f"Error logging access attempt: {e}")
+        return False
+
+
+def check_user_access_to_agent(user_id: str, ai_employee_id: str, organization_id: str) -> bool:
+    """Check whether a user is assigned to an AI employee."""
+    try:
+        result = supabase.table("user_ai_employee_assignments").select("id").eq(
+            "organization_id", organization_id
+        ).eq("user_id", user_id).eq("ai_employee_id", ai_employee_id).execute()
+        if result.data:
+            return True
+
+        user_resp = supabase.table("users").select("assigned_ai_employees").eq(
+            "user_id", user_id
+        ).eq("organization_id", organization_id).execute()
+        if not user_resp.data:
+            return False
+        assigned = user_resp.data[0].get("assigned_ai_employees") or []
+        return ai_employee_id in assigned
+    except Exception as e:
+        print(f"Error checking user access to agent: {e}")
+        return False
+
+
+def check_tool_permission(role_id: str, tool_name: str) -> bool:
+    """Check if a role is allowed to use a tool."""
+    try:
+        result = supabase.table("role_tool_permissions").select("allowed").eq(
+            "role_id", role_id
+        ).eq("tool_name", tool_name).execute()
+        return bool(result.data and result.data[0]["allowed"])
+    except Exception as e:
+        print(f"Error checking tool permission: {e}")
+        return False
+
+
+def get_user_agent_assignments(organization_id: str, user_id: str) -> List[Dict]:
+    """Get normalized assignment rows for a user."""
+    try:
+        result = supabase.table("user_ai_employee_assignments").select(
+            "id, ai_employee_id, assigned_at"
+        ).eq("organization_id", organization_id).eq("user_id", user_id).order(
+            "assigned_at", desc=False
+        ).execute()
+        return result.data or []
+    except Exception as e:
+        print(f"Error getting user agent assignments: {e}")
+        return []
+
+
+def get_access_attempts(
+    organization_id: str,
+    user_id: Optional[str] = None,
+    ai_employee_id: Optional[str] = None,
+    limit: int = 100,
+) -> List[Dict]:
+    """Get recent RBAC access attempts."""
+    try:
+        query = supabase.table("tool_access_attempts").select("*").eq(
+            "organization_id", organization_id
+        )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        if ai_employee_id:
+            query = query.eq("ai_employee_id", ai_employee_id)
+        result = query.order("attempted_at", desc=True).limit(limit).execute()
+        return result.data or []
+    except Exception as e:
+        print(f"Error getting access attempts: {e}")
+        return []
 
 
 # ============================================================

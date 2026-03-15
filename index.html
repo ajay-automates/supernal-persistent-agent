@@ -841,10 +841,82 @@
     .ctx-pill.agent { background: rgba(139,92,246,.15); color: #a78bfa; border: 1px solid rgba(139,92,246,.3); }
     .ctx-pill.user  { background: rgba(16,185,129,.15);  color: #34d399; border: 1px solid rgba(16,185,129,.3); }
     .ctx-sep-sm { font-size: 14px; color: var(--text-3); }
+    .rbac-panel {
+      display: none;
+      align-items: flex-start;
+      gap: 18px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(99,102,241,.08));
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .rbac-summary {
+      min-width: 220px;
+      flex: 1;
+    }
+    .rbac-kicker {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-3);
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .rbac-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .rbac-title strong {
+      font-size: 14px;
+    }
+    .rbac-badge {
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(99,102,241,.14);
+      color: #818cf8;
+      border: 1px solid rgba(99,102,241,.25);
+    }
+    .rbac-copy {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.45;
+    }
+    .rbac-tools-wrap {
+      min-width: 260px;
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .rbac-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .rbac-tool-chip {
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+    .rbac-tool-chip.empty {
+      border-style: dashed;
+      color: var(--text-3);
+    }
     @media (max-width: 700px) {
       .context-bar { padding: 10px 16px; }
       .ctx-select { min-width: 140px; }
       .ctx-active-banner { margin-left: 0; }
+      .rbac-panel { padding: 12px 16px; }
     }
 
     /* ============================================================
@@ -1565,7 +1637,7 @@
         <div class="status-dot" id="status-dot"></div>
         <span id="status-text">Checking...</span>
       </div>
-      <button class="btn btn-primary btn-sm" id="btn-demo-setup" title="Seed Amazon, Stripe & TechVentus demo data" style="font-size:12px;padding:6px 14px">🚀 Demo Setup</button>
+      <button class="btn btn-primary btn-sm" id="btn-demo-setup" title="Seed RBAC demo organizations and AI employees" style="font-size:12px;padding:6px 14px">🚀 Demo Setup</button>
       <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">🌙</button>
     </div>
   </header>
@@ -1623,6 +1695,21 @@
     </div>
     <button class="btn btn-primary btn-sm" id="ctx-apply-btn" style="margin-top:14px">Set Context</button>
     <div class="ctx-active-banner" id="ctx-active-banner" style="display:none"></div>
+  </div>
+
+  <div class="rbac-panel" id="rbac-panel">
+    <div class="rbac-summary">
+      <div class="rbac-kicker">Role-Based Access</div>
+      <div class="rbac-title">
+        <strong id="rbac-role-name">No AI employee selected</strong>
+        <span class="rbac-badge" id="rbac-role-category">RBAC</span>
+      </div>
+      <div class="rbac-copy" id="rbac-role-description">Select a user and AI employee to view their allowed tools.</div>
+    </div>
+    <div class="rbac-tools-wrap">
+      <div class="rbac-kicker" id="rbac-access-label">Allowed Tools</div>
+      <div class="rbac-tools" id="rbac-tools-list"></div>
+    </div>
   </div>
 
   <!-- ============================================================
@@ -2254,6 +2341,74 @@ function loadCtx() {
 function saveCtx() { localStorage.setItem('supernal_ctx', JSON.stringify(ctx)); }
 
 let ctx = loadCtx();
+let _orgAgents = [];
+let _agentMap = {};
+
+function indexAgents(agents) {
+  _orgAgents = agents || [];
+  _agentMap = Object.fromEntries(_orgAgents.map(agent => [agent.id, agent]));
+}
+
+function getSelectedAgentRecord() {
+  const sel = document.getElementById('ctx-agent-sel');
+  return _agentMap[sel.value] || _agentMap[ctx.agentId] || null;
+}
+
+function populateAgentDropdown() {
+  const sel = document.getElementById('ctx-agent-sel');
+  const options = _orgAgents.map(agent => {
+    const roleName = agent.role_details?.role_name || agent.role || 'AI Employee';
+    return `<option value="${agent.id}">${escapeHtml(agent.name)} (${escapeHtml(roleName)})</option>`;
+  }).join('');
+
+  sel.innerHTML = '<option value="">— Select AI Employee —</option>' + options;
+  sel.disabled = false;
+
+  const preferredId = ctx.agentId && _agentMap[ctx.agentId] ? ctx.agentId : '';
+  if (preferredId) {
+    sel.value = preferredId;
+  }
+}
+
+function updateRbacPanel(agent = null) {
+  const panel = document.getElementById('rbac-panel');
+  const nameEl = document.getElementById('rbac-role-name');
+  const catEl = document.getElementById('rbac-role-category');
+  const descEl = document.getElementById('rbac-role-description');
+  const toolsEl = document.getElementById('rbac-tools-list');
+  const labelEl = document.getElementById('rbac-access-label');
+
+  if (!agent) {
+    panel.style.display = 'none';
+    nameEl.textContent = 'No AI employee selected';
+    catEl.textContent = 'RBAC';
+    descEl.textContent = 'Select a user and AI employee to view their allowed tools.';
+    toolsEl.innerHTML = '';
+    return;
+  }
+
+  const role = agent.role_details || {};
+  const allowedTools = agent.allowed_tool_details || [];
+  const selectedUser = document.getElementById('ctx-user-sel').value || ctx.userId || '';
+
+  panel.style.display = 'flex';
+  nameEl.textContent = role.role_name || agent.role || 'AI Employee';
+  catEl.textContent = role.role_category || 'Role';
+  descEl.textContent = role.description || role.job_description || agent.job_description || 'No role description available.';
+  labelEl.textContent = selectedUser
+    ? `Allowed Tools for ${selectedUser}`
+    : 'Allowed Tools';
+
+  if (!allowedTools.length) {
+    toolsEl.innerHTML = '<span class="rbac-tool-chip empty">No tools configured</span>';
+    return;
+  }
+
+  toolsEl.innerHTML = allowedTools.map(tool => {
+    const title = tool.description ? ` title="${escapeHtml(tool.description)}"` : '';
+    return `<span class="rbac-tool-chip"${title}>${escapeHtml(tool.tool_name)}</span>`;
+  }).join('');
+}
 
 async function fetchOrgs() {
   const sel = document.getElementById('ctx-org-sel');
@@ -2266,7 +2421,8 @@ async function fetchOrgs() {
     if (ctx.orgId) {
       sel.value = ctx.orgId;
       if (sel.value) {
-        await Promise.all([fetchAgents(ctx.orgId), fetchUsers(ctx.orgId)]);
+        await fetchUsers(ctx.orgId);
+        await fetchAgents(ctx.orgId, ctx.userId || '');
       }
     }
   } catch {
@@ -2274,21 +2430,34 @@ async function fetchOrgs() {
   }
 }
 
-async function fetchAgents(orgId) {
+async function fetchAgents(orgId, userId = '') {
   const sel = document.getElementById('ctx-agent-sel');
   sel.disabled = true;
   sel.innerHTML = '<option value="">Loading…</option>';
   try {
-    const r = await fetch(`${API}/api/ai-employees/${orgId}`);
+    const path = userId
+      ? `${API}/api/agents/${orgId}/${encodeURIComponent(userId)}`
+      : `${API}/api/ai-employees/${orgId}`;
+    const r = await fetch(path);
     const data = await r.json();
     const agents = data.ai_employees || [];
-    sel.innerHTML = '<option value="">— Select AI Employee —</option>' +
-      agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)} (${escapeHtml(a.role)})</option>`).join('');
-    sel.disabled = false;
-    if (ctx.agentId) sel.value = ctx.agentId;
+    indexAgents(agents);
+    populateAgentDropdown();
+
+    if (ctx.agentId && !_agentMap[ctx.agentId]) {
+      ctx.agentId = '';
+      ctx.agentName = '';
+      ctx.agentRole = '';
+      saveCtx();
+    }
+
+    updateRbacPanel(getSelectedAgentRecord());
+    renderCompanyInfoPanel(ctx.orgName || document.getElementById('ctx-org-sel').options[document.getElementById('ctx-org-sel').selectedIndex]?.text || '');
   } catch {
+    indexAgents([]);
     sel.innerHTML = '<option value="">Failed to load agents</option>';
     sel.disabled = false;
+    updateRbacPanel(null);
   }
 }
 
@@ -2329,8 +2498,10 @@ document.getElementById('ctx-org-sel').addEventListener('change', async (e) => {
   ctx.userId = '';
   updateCtxBanner();
   if (orgId) {
-    await Promise.all([fetchAgents(orgId), fetchUsers(orgId)]);
+    await fetchUsers(orgId);
+    await fetchAgents(orgId);
   } else {
+    indexAgents([]);
     const agSel = document.getElementById('ctx-agent-sel');
     agSel.innerHTML = '<option value="">Select org first</option>';
     agSel.disabled = true;
@@ -2338,7 +2509,18 @@ document.getElementById('ctx-org-sel').addEventListener('change', async (e) => {
     uSel.innerHTML = '<option value="">Select org first</option>';
     uSel.disabled = true;
     _orgUsers = [];
+    updateRbacPanel(null);
   }
+});
+
+document.getElementById('ctx-user-sel').addEventListener('change', async (e) => {
+  const selectedUser = e.target.value;
+  if (!ctx.orgId) return;
+  await fetchAgents(ctx.orgId, selectedUser);
+});
+
+document.getElementById('ctx-agent-sel').addEventListener('change', () => {
+  updateRbacPanel(getSelectedAgentRecord());
 });
 
 document.getElementById('ctx-apply-btn').addEventListener('click', applyContext);
@@ -2355,9 +2537,9 @@ function applyContext() {
   ctx.orgId    = orgSel.value;
   ctx.orgName  = orgSel.options[orgSel.selectedIndex]?.text || '';
   ctx.agentId  = agSel.value;
-  const agTxt  = agSel.options[agSel.selectedIndex]?.text || '';
-  ctx.agentName = agTxt.split(' (')[0] || agTxt;
-  ctx.agentRole = (agTxt.match(/\((.+)\)/) || [])[1] || '';
+  const agentRecord = getSelectedAgentRecord();
+  ctx.agentName = agentRecord?.name || '';
+  ctx.agentRole = agentRecord?.role_details?.role_name || agentRecord?.role || '';
   ctx.userId   = userSel.value;
   saveCtx();
 
@@ -2368,6 +2550,7 @@ function applyContext() {
   chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
   renderChat();
   updateCtxBanner();
+  updateRbacPanel(agentRecord);
   toast(`Context: ${ctx.orgName} › ${ctx.agentName} › ${ctx.userId}`, 'success', 3000);
   renderCompanyInfoPanel(ctx.orgName);
 }
@@ -2401,6 +2584,7 @@ document.getElementById('ctx-create-user-btn').addEventListener('click', async (
     document.getElementById('ctx-new-uid').value = '';
     document.getElementById('ctx-new-name').value = '';
     await fetchUsers(ctx.orgId);
+    await fetchAgents(ctx.orgId, uid);
     document.getElementById('ctx-user-sel').value = uid;
     toast(`User "${uid}" created`, 'success');
     renderUsersTab();
@@ -2415,6 +2599,7 @@ function updateCtxBanner() {
       <span class="ctx-pill org">${escapeHtml(ctx.orgName)}</span>
       <span class="ctx-sep-sm">›</span>
       <span class="ctx-pill agent">${escapeHtml(ctx.agentName)}</span>
+      ${ctx.agentRole ? `<span class="ctx-pill agent">${escapeHtml(ctx.agentRole)}</span>` : ''}
       <span class="ctx-sep-sm">›</span>
       <span class="ctx-pill user">${escapeHtml(ctx.userId)}</span>`;
   } else {
@@ -2520,7 +2705,7 @@ function updateCurrentUserUI(uid) {
   }
 }
 
-function switchToUser(uid) {
+async function switchToUser(uid) {
   closeDropdown();
   if (!uid) return;
   if (!ctx.orgId || !ctx.agentId) {
@@ -2529,12 +2714,29 @@ function switchToUser(uid) {
   if (uid === ctx.userId) { toast(`Already "${uid}"`, 'info', 2000); return; }
 
   ctx.userId = uid;
+  await fetchAgents(ctx.orgId, uid);
+  if (!_agentMap[ctx.agentId]) {
+    ctx.agentId = '';
+    ctx.agentName = '';
+    ctx.agentRole = '';
+    document.getElementById('ctx-agent-sel').value = '';
+    updateRbacPanel(null);
+    saveCtx();
+    updateCtxBanner();
+    chatHistory = [];
+    saveChat();
+    renderChat();
+    toast(`Switched to "${uid}". Select one of their assigned AI employees.`, 'info', 3500);
+    renderDropdown();
+    return;
+  }
   saveCtx();
   document.getElementById('ctx-user-sel').value = uid;
   document.getElementById('chat-uid').value = uid;
   addRecentUser(uid);
   updateCurrentUserUI(uid);
   updateCtxBanner();
+  updateRbacPanel(getSelectedAgentRecord());
 
   chatHistory = JSON.parse(localStorage.getItem(chatKey()) || '[]');
   renderChat();
@@ -4137,7 +4339,7 @@ function updateAIPresence(state) {
     avatarEl.style.background = `linear-gradient(135deg, ${c}, ${c}bb)`;
   }
   document.getElementById('aip-name').textContent = ctx.agentName || 'AI Employee';
-  document.getElementById('aip-role').textContent = ctx.orgName  || 'AI Assistant';
+  document.getElementById('aip-role').textContent = [ctx.agentRole, ctx.orgName].filter(Boolean).join(' · ') || 'AI Assistant';
 
   // State class drives all CSS animations
   card.className = 'ai-presence' + (state ? ' ' + state : '');
@@ -4406,11 +4608,49 @@ const DEMO_COMPANY_META = {
       'Order a MacBook Pro and monitor for new hire David Park',
     ],
   },
+  'InsureAll Inc': {
+    logo: '🛡️',
+    badge: 'Insurance',
+    desc: 'Claims, underwriting, support, and finance AI employees operating behind role-based permissions.',
+    prompts: [
+      'Process a new claim and check whether the policy covers water damage',
+      'Assess the risk on this application and recommend whether to quote it',
+      'Help a customer understand why their policy claim is pending',
+    ],
+  },
+  'CreativeWorks Agency': {
+    logo: '🎨',
+    badge: 'Marketing',
+    desc: 'Content and social AI employees with clear separation between marketing, ops, and sales actions.',
+    prompts: [
+      'Draft three social posts for our spring campaign',
+      'Write a blog outline for our agency website',
+      'Prospect a new B2B client and prepare outreach',
+    ],
+  },
+  'TalentMatch Inc': {
+    logo: '🧑‍💼',
+    badge: 'Recruiting',
+    desc: 'Recruiting and onboarding AI employees with permissions tailored to screening, training, and setup work.',
+    prompts: [
+      'Screen these applicants for a senior engineering role',
+      'Schedule onboarding training for our new hire next week',
+      'Write a job posting for an enterprise account executive',
+    ],
+  },
 };
 
 function renderCompanyInfoPanel(orgName) {
   const panel = document.getElementById('company-info-panel');
-  const meta = DEMO_COMPANY_META[orgName];
+  const meta = DEMO_COMPANY_META[orgName] || {
+    logo: '🏢',
+    badge: 'RBAC Demo',
+    desc: 'AI employees in this organization are filtered by user assignment and constrained by role-based tool access.',
+    prompts: [
+      'What can this AI employee help me with?',
+      'Show me which tools this role is allowed to use',
+    ],
+  };
   if (!meta) { panel.style.display = 'none'; return; }
 
   document.getElementById('cip-logo').textContent  = meta.logo;
@@ -4418,21 +4658,23 @@ function renderCompanyInfoPanel(orgName) {
   document.getElementById('cip-badge').textContent = meta.badge;
   document.getElementById('cip-desc').textContent  = meta.desc;
 
-  // Agents (fetched from ctx after applyContext — use org agents)
-  const agentsSel = document.getElementById('ctx-agent-sel');
-  const agentsHtml = Array.from(agentsSel.options)
-    .filter(o => o.value)
-    .map(o => `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+  const agentsHtml = _orgAgents
+    .map(agent => {
+      const roleName = agent.role_details?.role_name || agent.role || 'AI Employee';
+      const selected = agent.id === ctx.agentId;
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
       <span style="font-size:14px">🤖</span>
-      <span style="color:var(--text)">${escapeHtml(o.text)}</span>
-    </div>`)
+      <span style="color:var(--text);font-weight:${selected ? '700' : '500'}">${escapeHtml(agent.name)}</span>
+      <span style="color:var(--text-3)">${escapeHtml(roleName)}</span>
+    </div>`;
+    })
     .join('') || '<div style="color:var(--text-3);font-size:12px">No agents yet</div>';
   document.getElementById('cip-agents').innerHTML = agentsHtml;
 
-  // Tools
-  document.getElementById('cip-tools').innerHTML = meta.tools.map(t =>
+  const tools = Array.from(new Set(_orgAgents.flatMap(agent => agent.allowed_tools || [])));
+  document.getElementById('cip-tools').innerHTML = tools.map(t =>
     `<span style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap">${escapeHtml(t)}</span>`
-  ).join('');
+  ).join('') || '<span style="color:var(--text-3);font-size:12px">No RBAC tools loaded</span>';
 
   // Prompts — clicking fills the chat input
   document.getElementById('cip-prompts').innerHTML = meta.prompts.map(p =>

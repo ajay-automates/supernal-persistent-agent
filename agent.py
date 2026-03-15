@@ -3,16 +3,17 @@ Agent module - 3-Tier RAG orchestrator
 Pipeline: retrieve org docs → load user+agent memory → generate → save
 """
 
-from config import OPENAI_API_KEY, LANGSMITH_API_KEY
+from config import OPENAI_API_KEY, LANGSMITH_API_KEY, supabase
 from tools import route_tool_call  # rich mock implementations
 from db import (
     get_or_create_user, save_message,
     get_user_ai_employee_memory, search_organization_chunks,
     get_organization, get_ai_employee,
-    get_organization_tools, log_tool_execution,
+    log_tool_execution,
     store_conversation_embedding, search_semantic_memory,
     log_llm_call, log_error,
 )
+from rbac import RoleBasedAccessControl
 from openai import OpenAI, AsyncOpenAI
 from worker import register_task, submit as worker_submit, submit_async as worker_submit_async
 from typing import List, Dict, Tuple, Optional, AsyncGenerator
@@ -23,6 +24,7 @@ import uuid
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 async_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+rbac = RoleBasedAccessControl(supabase)
 
 
 def _llm_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -353,6 +355,14 @@ def _extract_tool_call(response_text: str) -> Optional[dict]:
 # TOOL-AWARE AGENT PIPELINE
 # ============================================================
 
+def _build_allowed_tool_lines(agent_info: Dict) -> List[str]:
+    """Format the agent's RBAC-allowed tools for the system prompt."""
+    details = agent_info.get("allowed_tool_details") or []
+    if details:
+        return [f"{tool['tool_name']} - {tool.get('description', '')}".strip() for tool in details]
+    return [tool_name for tool_name in agent_info.get("allowed_tools", [])]
+
+
 @traceable(name="agent_pipeline_with_tools", run_type="chain")
 def answer_question_with_tools(
     organization_id: str,
@@ -393,12 +403,24 @@ def answer_question_with_tools(
 
         org = get_organization(organization_id) or {}
         agent = get_ai_employee(ai_employee_id) or {}
+        agent_info = rbac.get_agent_info(ai_employee_id, organization_id)
+        if not agent_info:
+            result["error"] = "AI employee not found"
+            return result
+
+        user_access_allowed, user_access_error = rbac.can_user_access_ai_employee(
+            user_id, ai_employee_id, organization_id
+        )
+        if not user_access_allowed:
+            result["error"] = user_access_error
+            return result
 
         org_name = org.get("name", "the organization")
         ai_name = agent.get("name", "AI Assistant")
         ai_role = agent.get("role", "Assistant")
         job_desc = agent.get("job_description", "")
         user_name = user.get("name", "")
+        role_info = agent_info.get("role_details") or {}
 
         # Retrieve org docs + memory (recent + semantic)
         context, sources = retrieve_context(organization_id, question, k=4)
@@ -410,21 +432,8 @@ def answer_question_with_tools(
         result["memory_used"] = len(recent_memory) > 0 or len(relevant_memory) > 0
         result["semantic_memory"] = relevant_memory
 
-        # Build tool list for the system prompt
-        org_tools = get_organization_tools(organization_id)
-        builtin_tools = [
-            "send_email(to, subject, body) - Send an email to a recipient",
-            "create_ticket(customer, issue, priority) - Create a support ticket",
-            "query_crm(customer_id) - Look up customer information from CRM",
-            "search_web(query) - Search the web for information",
-            "update_database(table, record_id, data) - Update a database record",
-            "add_calendar_event(user, date, time, description) - Schedule a calendar event",
-        ]
-        custom_tool_lines = [
-            f"{t['name']}({', '.join(t.get('schema', {}).get('parameters', {}).keys())}) - {t.get('description', '')}"
-            for t in org_tools
-        ]
-        tools_list = "\n".join(f"- {t}" for t in builtin_tools + custom_tool_lines)
+        allowed_tool_lines = _build_allowed_tool_lines(agent_info)
+        tools_list = "\n".join(f"- {t}" for t in allowed_tool_lines) if allowed_tool_lines else "- No tools available"
 
         # Format relevant past memories for the prompt
         relevant_mem_text = ""
@@ -436,8 +445,8 @@ def answer_question_with_tools(
             relevant_mem_text = f"\nRelevant past discussions:\n{snippets}\n"
 
         system_prompt = f"""You are {ai_name}, an AI employee at {org_name}.
-Your role: {ai_role}
-Your responsibilities: {job_desc or 'Help users with their questions.'}
+Your role: {role_info.get('role_name', ai_role)}
+Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
 
 You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
 
@@ -448,6 +457,7 @@ To use a tool, respond ONLY with this exact format (no other text before it):
 TOOL: <tool_name>
 PARAMS: {{"key": "value", ...}}
 
+You can ONLY use the tools listed above. If the user asks for something outside your role or tool access, politely decline and explain what you can do instead.
 If no tool is needed, answer the question directly and helpfully.
 {relevant_mem_text}
 Organization Knowledge Base:
@@ -487,9 +497,18 @@ Sources: {', '.join(sources) if sources else 'None'}"""
             # Execute the tool and time it
             start_ms = int(time.time() * 1000)
             try:
-                tool_result = route_tool_call(tool_name, tool_params, organization_id, ai_employee_id, user_id)
-                status = "success"
-                error_msg = None
+                allowed, error_msg = rbac.validate_tool_execution(
+                    user_id, ai_employee_id, tool_name, organization_id
+                )
+                if not allowed:
+                    tool_result = {"status": "denied", "error": error_msg}
+                    status = "denied"
+                else:
+                    tool_result = route_tool_call(
+                        tool_name, tool_params, organization_id, ai_employee_id, user_id
+                    )
+                    status = "success"
+                    error_msg = None
             except Exception as te:
                 tool_result = {"error": str(te)}
                 status = "failed"
@@ -516,8 +535,9 @@ Sources: {', '.join(sources) if sources else 'None'}"""
             messages.append({
                 "role": "user",
                 "content": (
-                    f"Tool '{tool_name}' executed successfully. Result: {json.dumps(tool_result)}. "
-                    f"Now respond to the user's original request naturally, confirming what was done."
+                    f"Tool '{tool_name}' returned: {json.dumps(tool_result)}. "
+                    "Now respond to the user's original request naturally. "
+                    "If the tool was denied, explain the restriction and offer role-appropriate alternatives."
                 )
             })
 
@@ -592,11 +612,23 @@ async def stream_answer_with_tools(
 
         org = get_organization(organization_id) or {}
         agent = get_ai_employee(ai_employee_id) or {}
+        agent_info = rbac.get_agent_info(ai_employee_id, organization_id)
+        if not agent_info:
+            yield json.dumps({"type": "error", "message": "AI employee not found"}) + "\n"
+            return
+
+        user_access_allowed, user_access_error = rbac.can_user_access_ai_employee(
+            user_id, ai_employee_id, organization_id
+        )
+        if not user_access_allowed:
+            yield json.dumps({"type": "error", "message": user_access_error}) + "\n"
+            return
 
         org_name  = org.get("name", "the organization")
         ai_name   = agent.get("name", "AI Assistant")
         ai_role   = agent.get("role", "Assistant")
         job_desc  = agent.get("job_description", "")
+        role_info = agent_info.get("role_details") or {}
 
         context, sources = retrieve_context(organization_id, question, k=4)
 
@@ -605,20 +637,8 @@ async def stream_answer_with_tools(
         relevant_memory = mem_ctx["relevant_memory"]
         memory_used = len(recent_memory) > 0 or len(relevant_memory) > 0
 
-        org_tools = get_organization_tools(organization_id)
-        builtin_tools = [
-            "send_email(to, subject, body) - Send an email to a recipient",
-            "create_ticket(customer, issue, priority) - Create a support ticket",
-            "query_crm(customer_id) - Look up customer information from CRM",
-            "search_web(query) - Search the web for information",
-            "update_database(table, record_id, data) - Update a database record",
-            "add_calendar_event(user, date, time, description) - Schedule a calendar event",
-        ]
-        custom_tool_lines = [
-            f"{t['name']}({', '.join(t.get('schema', {}).get('parameters', {}).keys())}) - {t.get('description', '')}"
-            for t in org_tools
-        ]
-        tools_list = "\n".join(f"- {t}" for t in builtin_tools + custom_tool_lines)
+        allowed_tool_lines = _build_allowed_tool_lines(agent_info)
+        tools_list = "\n".join(f"- {t}" for t in allowed_tool_lines) if allowed_tool_lines else "- No tools available"
 
         relevant_mem_text = ""
         if relevant_memory:
@@ -629,8 +649,8 @@ async def stream_answer_with_tools(
             relevant_mem_text = f"\nRelevant past discussions:\n{snippets}\n"
 
         system_prompt = f"""You are {ai_name}, an AI employee at {org_name}.
-Your role: {ai_role}
-Your responsibilities: {job_desc or 'Help users with their questions.'}
+Your role: {role_info.get('role_name', ai_role)}
+Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
 
 You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
 
@@ -641,6 +661,7 @@ To use a tool, respond ONLY with this exact format (no other text before it):
 TOOL: <tool_name>
 PARAMS: {{"key": "value", ...}}
 
+You can ONLY use the tools listed above. If the user asks for something outside your role or tool access, politely decline and explain what you can do instead.
 If no tool is needed, answer the question directly and helpfully.
 {relevant_mem_text}
 Organization Knowledge Base:
@@ -683,9 +704,18 @@ Sources: {', '.join(sources) if sources else 'None'}"""
 
             start_ms = int(time.time() * 1000)
             try:
-                tool_result = route_tool_call(tool_name, tool_params, organization_id, ai_employee_id, user_id)
-                status = "success"
-                error_msg = None
+                allowed, error_msg = rbac.validate_tool_execution(
+                    user_id, ai_employee_id, tool_name, organization_id
+                )
+                if not allowed:
+                    tool_result = {"status": "denied", "error": error_msg}
+                    status = "denied"
+                else:
+                    tool_result = route_tool_call(
+                        tool_name, tool_params, organization_id, ai_employee_id, user_id
+                    )
+                    status = "success"
+                    error_msg = None
             except Exception as te:
                 tool_result = {"error": str(te)}
                 status = "failed"
@@ -710,8 +740,9 @@ Sources: {', '.join(sources) if sources else 'None'}"""
             messages.append({
                 "role": "user",
                 "content": (
-                    f"Tool '{tool_name}' executed successfully. Result: {json.dumps(tool_result)}. "
-                    f"Now respond to the user's original request naturally, confirming what was done."
+                    f"Tool '{tool_name}' returned: {json.dumps(tool_result)}. "
+                    "Now respond to the user's original request naturally. "
+                    "If the tool was denied, explain the restriction and offer role-appropriate alternatives."
                 )
             })
 

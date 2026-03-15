@@ -14,8 +14,9 @@ from pydantic import BaseModel
 from pypdf import PdfReader
 from openai import OpenAI
 
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, supabase
 from agent import answer_question_with_tools, stream_answer_with_tools
+from rbac import RoleBasedAccessControl
 import demo_setup
 from db import (
     # Organization
@@ -23,6 +24,7 @@ from db import (
     # AI Employees
     create_ai_employee, get_ai_employees, get_ai_employee,
     assign_ai_employee_to_user, get_user_assigned_ai_employees,
+    get_role_id_by_name, get_access_attempts,
     # Users
     create_user, get_user, get_org_users, get_or_create_user,
     delete_user,
@@ -85,6 +87,7 @@ async def observability_middleware(request: Request, call_next):
 
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+rbac = RoleBasedAccessControl(supabase)
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
@@ -174,6 +177,8 @@ async def create_agent(body: AIEmployeeCreate):
     org = get_organization(body.organization_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    if not get_role_id_by_name(body.role):
+        raise HTTPException(status_code=422, detail=f"Unsupported RBAC role '{body.role}'")
     employee = create_ai_employee(
         body.organization_id, body.name, body.role, body.job_description
     )
@@ -188,7 +193,53 @@ async def list_agents(org_id: str):
     org = get_organization(org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return {"ai_employees": get_ai_employees(org_id), "organization": org}
+    agents = [
+        rbac.get_agent_info(agent["id"], org_id) or agent
+        for agent in get_ai_employees(org_id)
+    ]
+    return {"ai_employees": agents, "organization": org}
+
+
+@app.get("/api/agents/{organization_id}/{user_id}")
+async def get_user_agents(organization_id: str, user_id: str):
+    """Get RBAC-enriched AI employees assigned to a user."""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    user = get_user(user_id)
+    if not user or user.get("organization_id") != organization_id:
+        raise HTTPException(status_code=404, detail="User not found in this organization")
+    agents = rbac.get_user_assigned_agents(user_id, organization_id)
+    return {"ai_employees": agents, "count": len(agents), "user_id": user_id}
+
+
+@app.get("/api/agent-info/{organization_id}/{ai_employee_id}")
+async def get_agent_info_endpoint(organization_id: str, ai_employee_id: str):
+    """Get one AI employee with RBAC role and allowed tools."""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    agent = rbac.get_agent_info(ai_employee_id, organization_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="AI employee not found")
+    return agent
+
+
+@app.get("/api/access-log/{organization_id}")
+async def get_access_log_endpoint(
+    organization_id: str,
+    user_id: str = None,
+    ai_employee_id: str = None,
+    limit: int = 100,
+):
+    """Return recent RBAC tool access attempts."""
+    org = get_organization(organization_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    attempts = get_access_attempts(
+        organization_id, user_id=user_id, ai_employee_id=ai_employee_id, limit=limit
+    )
+    return {"attempts": attempts, "count": len(attempts)}
 
 
 # ============================================================
@@ -249,7 +300,9 @@ async def get_assigned_agents(user_id: str):
     user = get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"ai_employees": get_user_assigned_ai_employees(user_id), "user_id": user_id}
+    org_id = user.get("organization_id")
+    agents = rbac.get_user_assigned_agents(user_id, org_id) if org_id else get_user_assigned_ai_employees(user_id)
+    return {"ai_employees": agents, "user_id": user_id}
 
 
 # ============================================================
@@ -384,6 +437,11 @@ async def chat(
             raise HTTPException(status_code=500, detail="Failed to create/retrieve user")
         if user.get("organization_id") != organization_id:
             raise HTTPException(status_code=422, detail=f"User '{user_id}' belongs to a different organization")
+        user_access_allowed, user_access_error = rbac.can_user_access_ai_employee(
+            user_id, ai_employee_id, organization_id
+        )
+        if not user_access_allowed:
+            raise HTTPException(status_code=403, detail=user_access_error)
 
         result = answer_question_with_tools(organization_id, ai_employee_id, user_id, question)
 
@@ -429,6 +487,14 @@ async def chat_stream(
     agent = get_ai_employee(ai_employee_id)
     if not agent or agent.get("organization_id") != organization_id:
         raise HTTPException(status_code=422, detail="AI employee not found in this organization")
+    user = get_or_create_user(organization_id, user_id)
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to create/retrieve user")
+    user_access_allowed, user_access_error = rbac.can_user_access_ai_employee(
+        user_id, ai_employee_id, organization_id
+    )
+    if not user_access_allowed:
+        raise HTTPException(status_code=403, detail=user_access_error)
 
     async def generate():
         async for event in stream_answer_with_tools(
