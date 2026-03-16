@@ -33,9 +33,31 @@ def _llm_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
         return (prompt_tokens * 0.00000015) + (completion_tokens * 0.0000006)
     return 0.0
 
+
+def _log_to_langsmith(model: str, prompt_tokens: int, completion_tokens: int, latency_ms: int):
+    """Log LLM token usage to Langsmith run context."""
+    if not LANGSMITH_API_KEY:
+        return
+    try:
+        from langsmith.run_trees import get_run_tree
+        run_tree = get_run_tree()
+        if run_tree:
+            cost = _llm_cost(model, prompt_tokens, completion_tokens)
+            run_tree.add_metadata({
+                "model": model,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "cost_usd": cost,
+                "latency_ms": latency_ms
+            })
+    except Exception as e:
+        print(f"Warning: Could not log to Langsmith: {e}")
+
 # Optional LangSmith tracing
 if LANGSMITH_API_KEY:
     from langsmith import traceable
+    from langsmith.run_trees import RunTree
 else:
     def traceable(name=None, run_type=None):
         def decorator(func):
@@ -60,6 +82,9 @@ def _generate_query_embedding(query: str) -> List[float]:
         model="text-embedding-3-small",
         input=query
     )
+    # Log embedding tokens to Langsmith
+    if hasattr(embedding_response, 'usage'):
+        _log_to_langsmith("text-embedding-3-small", embedding_response.usage.prompt_tokens, 0, 0)
     return embedding_response.data[0].embedding
 
 
@@ -113,18 +138,35 @@ def _embed_turn_background(
     try:
         text = f"User: {question}\nAssistant: {answer}"
 
-        emb = client.embeddings.create(
+        # Generate embedding
+        _t_emb = int(time.time() * 1000)
+        emb_resp = client.embeddings.create(
             model="text-embedding-3-small", input=text
-        ).data[0].embedding
+        )
+        _latency_emb = int(time.time() * 1000) - _t_emb
+        emb = emb_resp.data[0].embedding
+        if hasattr(emb_resp, 'usage'):
+            log_llm_call(organization_id, ai_employee_id, "text-embedding-3-small",
+                        emb_resp.usage.prompt_tokens, 0, emb_resp.usage.prompt_tokens,
+                        _latency_emb, 0.0)
 
+        # Generate summary
+        _t_sum = int(time.time() * 1000)
         summary_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": f"Summarize this conversation turn in 1-2 sentences:\n{text}"}],
             max_tokens=80,
             temperature=0.1
         )
+        _latency_sum = int(time.time() * 1000) - _t_sum
         summary = summary_resp.choices[0].message.content.strip()
+        log_llm_call(organization_id, ai_employee_id, "gpt-4o-mini",
+                    summary_resp.usage.prompt_tokens, summary_resp.usage.completion_tokens,
+                    summary_resp.usage.total_tokens, _latency_sum,
+                    _llm_cost("gpt-4o-mini", summary_resp.usage.prompt_tokens, summary_resp.usage.completion_tokens))
 
+        # Extract topics
+        _t_top = int(time.time() * 1000)
         topics_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": (
@@ -134,10 +176,15 @@ def _embed_turn_background(
             max_tokens=60,
             temperature=0.1
         )
+        _latency_top = int(time.time() * 1000) - _t_top
         try:
             topics = json.loads(topics_resp.choices[0].message.content.strip())
         except Exception:
             topics = []
+        log_llm_call(organization_id, ai_employee_id, "gpt-4o-mini",
+                    topics_resp.usage.prompt_tokens, topics_resp.usage.completion_tokens,
+                    topics_resp.usage.total_tokens, _latency_top,
+                    _llm_cost("gpt-4o-mini", topics_resp.usage.prompt_tokens, topics_resp.usage.completion_tokens))
 
         store_conversation_embedding(
             organization_id, ai_employee_id, user_id,
@@ -165,9 +212,19 @@ def get_semantic_memory_context(
         organization_id, ai_employee_id, user_id, limit=10
     )
     try:
-        q_emb = client.embeddings.create(
+        _t_emb = int(time.time() * 1000)
+        emb_resp = client.embeddings.create(
             model="text-embedding-3-small", input=question
-        ).data[0].embedding
+        )
+        _latency_emb = int(time.time() * 1000) - _t_emb
+        q_emb = emb_resp.data[0].embedding
+
+        # Log embedding tokens
+        if hasattr(emb_resp, 'usage'):
+            log_llm_call(organization_id, ai_employee_id, "text-embedding-3-small",
+                        emb_resp.usage.prompt_tokens, 0, emb_resp.usage.prompt_tokens,
+                        _latency_emb, 0.0)
+
         semantic = search_semantic_memory(
             organization_id, ai_employee_id, user_id, q_emb, k=5
         )
@@ -233,12 +290,18 @@ Question: {query}"""
 
         messages.append({"role": "user", "content": context_prompt})
 
+        _t0 = int(time.time() * 1000)
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             max_tokens=800,
             temperature=0.3
         )
+        _latency = int(time.time() * 1000) - _t0
+
+        # Log token usage to Langsmith
+        _log_to_langsmith("gpt-4o-mini", response.usage.prompt_tokens, response.usage.completion_tokens, _latency)
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
@@ -494,11 +557,14 @@ Sources: {', '.join(sources) if sources else 'None'}"""
         _first_latency = int(time.time() * 1000) - _t0
         first_text = first_response.choices[0].message.content.strip()
         _u = first_response.usage
+
+        # Log to both database and Langsmith
         log_llm_call(
             organization_id, ai_employee_id, "gpt-4o-mini",
             _u.prompt_tokens, _u.completion_tokens, _u.total_tokens,
             _first_latency, _llm_cost("gpt-4o-mini", _u.prompt_tokens, _u.completion_tokens),
         )
+        _log_to_langsmith("gpt-4o-mini", _u.prompt_tokens, _u.completion_tokens, _first_latency)
 
         tool_call = _extract_tool_call(first_text)
 
@@ -563,11 +629,14 @@ Sources: {', '.join(sources) if sources else 'None'}"""
             _final_latency = int(time.time() * 1000) - _t1
             answer = final_response.choices[0].message.content.strip()
             _u2 = final_response.usage
+
+            # Log to both database and Langsmith
             log_llm_call(
                 organization_id, ai_employee_id, "gpt-4o-mini",
                 _u2.prompt_tokens, _u2.completion_tokens, _u2.total_tokens,
                 _final_latency, _llm_cost("gpt-4o-mini", _u2.prompt_tokens, _u2.completion_tokens),
             )
+            _log_to_langsmith("gpt-4o-mini", _u2.prompt_tokens, _u2.completion_tokens, _final_latency)
         else:
             answer = first_text
 
