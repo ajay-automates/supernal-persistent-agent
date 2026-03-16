@@ -2513,10 +2513,9 @@ document.getElementById('ctx-org-sel').addEventListener('change', async (e) => {
   }
 });
 
-document.getElementById('ctx-user-sel').addEventListener('change', async (e) => {
-  const selectedUser = e.target.value;
-  if (!ctx.orgId) return;
-  await fetchAgents(ctx.orgId, selectedUser);
+document.getElementById('ctx-user-sel').addEventListener('change', (e) => {
+  // User selection no longer refetches agents
+  // Agent selection remains unchanged; RBAC validates on apply
 });
 
 document.getElementById('ctx-agent-sel').addEventListener('change', () => {
