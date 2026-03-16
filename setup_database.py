@@ -347,6 +347,39 @@ SQL_COMMANDS = [
 ]
 
 # Create indexes for performance
+# RPC Functions for semantic search
+RPC_COMMANDS = [
+    """
+    CREATE OR REPLACE FUNCTION search_memory(
+        p_organization_id UUID,
+        p_ai_employee_id UUID,
+        p_user_id TEXT,
+        p_query_embedding vector(1536),
+        p_match_count INT DEFAULT 5
+    )
+    RETURNS TABLE (
+        id UUID,
+        summary TEXT,
+        topics TEXT[],
+        similarity FLOAT4
+    )
+    LANGUAGE SQL STABLE
+    AS $$
+        SELECT
+            ce.id,
+            ce.summary,
+            ce.topics,
+            (ce.embedding <-> p_query_embedding) as similarity
+        FROM conversation_embeddings ce
+        WHERE ce.organization_id = p_organization_id
+          AND ce.ai_employee_id = p_ai_employee_id
+          AND ce.user_id = p_user_id
+        ORDER BY ce.embedding <-> p_query_embedding
+        LIMIT p_match_count;
+    $$;
+    """
+]
+
 INDEX_COMMANDS = [
     "CREATE INDEX IF NOT EXISTS idx_conversations_org_ai_user ON conversations(organization_id, ai_employee_id, user_id);",
     "CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp);",
@@ -369,6 +402,16 @@ except Exception as e:
     conn.rollback()
     print(f"  ⚠ Note: Some tables may already exist (this is OK)")
     print(f"  Error: {e}")
+
+print("\n🔧 Creating RPC functions for semantic search...")
+try:
+    for sql in RPC_COMMANDS:
+        cursor.execute(sql)
+        conn.commit()
+        print(f"  ✓ RPC function created")
+except Exception as e:
+    conn.rollback()
+    print(f"  ⚠ RPC function may already exist: {e}")
 
 print("\n📊 Creating indexes...")
 try:
