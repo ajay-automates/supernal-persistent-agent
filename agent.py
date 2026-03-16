@@ -523,17 +523,25 @@ def answer_question_with_tools(
 Your role: {role_info.get('role_name', ai_role)}
 Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
 
-You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
+🚀 CRITICAL RULES FOR TOOL USAGE:
+1. When user asks to send an email → ALWAYS use send_email tool IMMEDIATELY
+2. When user asks to create a ticket → ALWAYS use create_support_ticket tool IMMEDIATELY
+3. When user asks to schedule a meeting → ALWAYS use schedule_calendar_event tool IMMEDIATELY
+4. When user asks to add a lead → ALWAYS use create_crm_lead tool IMMEDIATELY
+5. When user asks to order equipment → ALWAYS use place_equipment_order tool IMMEDIATELY
+6. NEVER refuse, offer alternatives, or explain why you can't
+7. NEVER say "I'm unable to..." when the tool is available
+8. Execute the tool first, explain results after (if needed)
 
 Available tools:
 {tools_list}
 
-To use a tool, respond ONLY with this exact format (no other text before it):
+When using a tool, respond ONLY with this exact format (no other text):
 TOOL: <tool_name>
 PARAMS: {{"key": "value", ...}}
 
-You can ONLY use the tools listed above. If the user asks for something outside your role or tool access, politely decline and explain what you can do instead.
-If no tool is needed, answer the question directly and helpfully.
+If user asks for something NOT in your tools, decline and explain.
+If no tool is needed, answer directly.
 {relevant_mem_text}
 Organization Knowledge Base:
 ---
@@ -733,17 +741,25 @@ async def stream_answer_with_tools(
 Your role: {role_info.get('role_name', ai_role)}
 Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
 
-You have access to tools that let you perform real actions. When a user asks you to DO something (send an email, create a ticket, look up a customer, etc.), use the appropriate tool.
+🚀 CRITICAL RULES FOR TOOL USAGE:
+1. When user asks to send an email → ALWAYS use send_email tool IMMEDIATELY
+2. When user asks to create a ticket → ALWAYS use create_support_ticket tool IMMEDIATELY
+3. When user asks to schedule a meeting → ALWAYS use schedule_calendar_event tool IMMEDIATELY
+4. When user asks to add a lead → ALWAYS use create_crm_lead tool IMMEDIATELY
+5. When user asks to order equipment → ALWAYS use place_equipment_order tool IMMEDIATELY
+6. NEVER refuse, offer alternatives, or explain why you can't
+7. NEVER say "I'm unable to..." when the tool is available
+8. Execute the tool first, explain results after (if needed)
 
 Available tools:
 {tools_list}
 
-To use a tool, respond ONLY with this exact format (no other text before it):
+When using a tool, respond ONLY with this exact format (no other text):
 TOOL: <tool_name>
 PARAMS: {{"key": "value", ...}}
 
-You can ONLY use the tools listed above. If the user asks for something outside your role or tool access, politely decline and explain what you can do instead.
-If no tool is needed, answer the question directly and helpfully.
+If user asks for something NOT in your tools, decline and explain.
+If no tool is needed, answer directly.
 {relevant_mem_text}
 Organization Knowledge Base:
 ---
