@@ -90,7 +90,7 @@ class RoleBasedAccessControl:
         try:
             assignment = self.db.table("user_ai_employee_assignments").select(
                 "id"
-            ).eq("organization_id", organization_id).eq("user_id", user_id).eq(
+            ).eq("user_id", user_id).eq(
                 "ai_employee_id", ai_employee_id
             ).execute()
             if assignment.data:
