@@ -4754,15 +4754,20 @@ function renderCompanyInfoPanel(orgName) {
     'Show me which tools this role is allowed to use',
   ];
 
-  document.getElementById('cip-prompts').innerHTML = prompts.map(p =>
-    `<button onclick="fillChatPrompt(${JSON.stringify(p)})"
-      style="text-align:left;background:var(--surface-2);border:1px solid var(--border);
+  const promptsContainer = document.getElementById('cip-prompts');
+  promptsContainer.innerHTML = '';
+
+  prompts.forEach(p => {
+    const btn = document.createElement('button');
+    btn.textContent = p;
+    btn.style.cssText = `text-align:left;background:var(--surface-2);border:1px solid var(--border);
              color:var(--text-2);font-size:12px;padding:5px 10px;border-radius:6px;
-             cursor:pointer;transition:background .15s;line-height:1.4"
-      onmouseover="this.style.background='var(--surface-3)'"
-      onmouseout="this.style.background='var(--surface-2)'"
-    >${escapeHtml(p)}</button>`
-  ).join('');
+             cursor:pointer;transition:background .15s;line-height:1.4`;
+    btn.onmouseover = () => btn.style.background = 'var(--surface-3)';
+    btn.onmouseout = () => btn.style.background = 'var(--surface-2)';
+    btn.onclick = () => fillChatPrompt(p);
+    promptsContainer.appendChild(btn);
+  });
 
   panel.style.display = 'flex';
 }
