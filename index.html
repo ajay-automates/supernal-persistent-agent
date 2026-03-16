@@ -2521,6 +2521,11 @@ document.getElementById('ctx-user-sel').addEventListener('change', async (e) => 
 
 document.getElementById('ctx-agent-sel').addEventListener('change', () => {
   updateRbacPanel(getSelectedAgentRecord());
+  // Update prompts for the newly selected agent
+  const orgSel = document.getElementById('ctx-org-sel');
+  if (orgSel.value) {
+    renderCompanyInfoPanel(orgSel.options[orgSel.selectedIndex]?.text || '');
+  }
 });
 
 document.getElementById('ctx-apply-btn').addEventListener('click', applyContext);
@@ -4640,16 +4645,81 @@ const DEMO_COMPANY_META = {
   },
 };
 
+// Generate relevant prompts based on agent's allowed tools
+function generatePromptsForAgent(agent) {
+  if (!agent || !agent.allowed_tools || agent.allowed_tools.length === 0) {
+    return [
+      'What can you help me with?',
+      'Show me which tools you have access to',
+    ];
+  }
+
+  const tools = agent.allowed_tools || [];
+  const prompts = [];
+  const toolSet = new Set(tools);
+
+  // Tool-specific prompts
+  const toolPrompts = {
+    'send_email': [
+      'Send an email to john@example.com about the project update',
+      'Email the team about the quarterly review schedule',
+      'Send a follow-up email to the client',
+    ],
+    'create_support_ticket': [
+      'Create a support ticket for the API authentication issue',
+      'Open a high-priority ticket for the database performance problem',
+      'File a ticket for the customer onboarding flow bug',
+    ],
+    'schedule_calendar_event': [
+      'Schedule a team meeting for Friday at 2pm for 1 hour',
+      'Book the conference room for our design review next Tuesday',
+      'Schedule a one-on-one with the team lead',
+    ],
+    'create_crm_lead': [
+      'Add a new lead to the CRM for the enterprise prospect',
+      'Create a prospect record for the tech startup contact',
+      'Add the decision maker to our sales pipeline',
+    ],
+    'place_equipment_order': [
+      'Place an order for new office equipment',
+      'Order supplies for the upcoming team offsite',
+      'Request a laptop for the new hire',
+    ],
+  };
+
+  // Add relevant prompts based on allowed tools
+  for (const tool of tools) {
+    if (toolPrompts[tool]) {
+      prompts.push(toolPrompts[tool][0]);
+    }
+  }
+
+  // If no tools matched, use generic prompts
+  if (prompts.length === 0) {
+    prompts.push('What can I help you with today?');
+  }
+
+  // Fill remaining slots with additional prompts
+  for (const tool of tools) {
+    if (toolPrompts[tool] && prompts.length < 4) {
+      prompts.push(toolPrompts[tool][1]);
+    }
+  }
+  for (const tool of tools) {
+    if (toolPrompts[tool] && prompts.length < 4) {
+      prompts.push(toolPrompts[tool][2]);
+    }
+  }
+
+  return prompts.slice(0, 4);
+}
+
 function renderCompanyInfoPanel(orgName) {
   const panel = document.getElementById('company-info-panel');
   const meta = DEMO_COMPANY_META[orgName] || {
     logo: '🏢',
     badge: 'RBAC Demo',
     desc: 'AI employees in this organization are filtered by user assignment and constrained by role-based tool access.',
-    prompts: [
-      'What can this AI employee help me with?',
-      'Show me which tools this role is allowed to use',
-    ],
   };
   if (!meta) { panel.style.display = 'none'; return; }
 
@@ -4671,13 +4741,20 @@ function renderCompanyInfoPanel(orgName) {
     .join('') || '<div style="color:var(--text-3);font-size:12px">No agents yet</div>';
   document.getElementById('cip-agents').innerHTML = agentsHtml;
 
-  const tools = Array.from(new Set(_orgAgents.flatMap(agent => agent.allowed_tools || [])));
-  document.getElementById('cip-tools').innerHTML = tools.map(t =>
+  // Show tools for SELECTED agent, not all agents
+  const selectedAgent = getSelectedAgentRecord();
+  const agentTools = selectedAgent?.allowed_tools || [];
+  document.getElementById('cip-tools').innerHTML = agentTools.map(t =>
     `<span style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap">${escapeHtml(t)}</span>`
-  ).join('') || '<span style="color:var(--text-3);font-size:12px">No RBAC tools loaded</span>';
+  ).join('') || '<span style="color:var(--text-3);font-size:12px">Select an AI employee to see their tools</span>';
 
-  // Prompts — clicking fills the chat input
-  document.getElementById('cip-prompts').innerHTML = meta.prompts.map(p =>
+  // Generate dynamic prompts for selected agent
+  const prompts = selectedAgent ? generatePromptsForAgent(selectedAgent) : [
+    'What can this AI employee help me with?',
+    'Show me which tools this role is allowed to use',
+  ];
+
+  document.getElementById('cip-prompts').innerHTML = prompts.map(p =>
     `<button onclick="fillChatPrompt(${JSON.stringify(p)})"
       style="text-align:left;background:var(--surface-2);border:1px solid var(--border);
              color:var(--text-2);font-size:12px;padding:5px 10px;border-radius:6px;
