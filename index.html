@@ -4645,7 +4645,7 @@ const DEMO_COMPANY_META = {
   },
 };
 
-// Generate relevant prompts based on agent's allowed tools
+// Generate relevant prompts based on agent's role and allowed tools
 function generatePromptsForAgent(agent) {
   if (!agent || !agent.allowed_tools || agent.allowed_tools.length === 0) {
     return [
@@ -4655,60 +4655,82 @@ function generatePromptsForAgent(agent) {
   }
 
   const tools = agent.allowed_tools || [];
+  const role = (agent.role_details?.role_name || agent.role || '').toLowerCase();
   const prompts = [];
-  const toolSet = new Set(tools);
 
-  // Tool-specific prompts
-  const toolPrompts = {
-    'send_email': [
-      'Send an email to john@example.com about the project update',
-      'Email the team about the quarterly review schedule',
-      'Send a follow-up email to the client',
-    ],
-    'create_support_ticket': [
-      'Create a support ticket for the API authentication issue',
-      'Open a high-priority ticket for the database performance problem',
-      'File a ticket for the customer onboarding flow bug',
-    ],
-    'schedule_calendar_event': [
-      'Schedule a team meeting for Friday at 2pm for 1 hour',
-      'Book the conference room for our design review next Tuesday',
-      'Schedule a one-on-one with the team lead',
-    ],
-    'create_crm_lead': [
-      'Add a new lead to the CRM for the enterprise prospect',
-      'Create a prospect record for the tech startup contact',
-      'Add the decision maker to our sales pipeline',
-    ],
-    'place_equipment_order': [
-      'Place an order for new office equipment',
-      'Order supplies for the upcoming team offsite',
-      'Request a laptop for the new hire',
-    ],
+  // Role and tool-specific prompt combinations
+  const rolePrompts = {
+    'sales development rep': {
+      'send_email': [
+        'Send a personalized outreach email to a prospect about our solution',
+        'Draft an email to follow up with a lead who showed interest last week',
+      ],
+      'create_crm_lead': [
+        'Add a new high-value prospect to our CRM',
+        'Create a lead record for the company I just researched',
+      ],
+      'schedule_calendar_event': [
+        'Schedule a discovery call with the prospect for next week',
+        'Book a meeting with the decision maker to discuss our offering',
+      ],
+    },
+    'customer support agent': {
+      'create_support_ticket': [
+        'Create a high-priority support ticket for this customer issue',
+        'Open a ticket to escalate this billing problem to our team',
+      ],
+      'send_email': [
+        'Send a response email to the customer with a solution',
+        'Email the customer about the status of their ticket',
+      ],
+    },
+    'operations manager': {
+      'schedule_calendar_event': [
+        'Schedule a team standup meeting for tomorrow morning',
+        'Book the conference room for our monthly review meeting',
+      ],
+      'place_equipment_order': [
+        'Order new laptops for our incoming team members',
+        'Place an order for office supplies and furniture',
+      ],
+    },
   };
 
-  // Add relevant prompts based on allowed tools
-  for (const tool of tools) {
-    if (toolPrompts[tool]) {
-      prompts.push(toolPrompts[tool][0]);
+  // Get prompts for this specific role
+  const roleKey = Object.keys(rolePrompts).find(key => role.includes(key));
+  if (roleKey && rolePrompts[roleKey]) {
+    for (const tool of tools) {
+      if (rolePrompts[roleKey][tool]) {
+        prompts.push(rolePrompts[roleKey][tool][0]);
+      }
+    }
+    // Add second variants
+    for (const tool of tools) {
+      if (rolePrompts[roleKey][tool] && rolePrompts[roleKey][tool][1] && prompts.length < 4) {
+        prompts.push(rolePrompts[roleKey][tool][1]);
+      }
     }
   }
 
-  // If no tools matched, use generic prompts
+  // Fallback: use tool-based prompts if no role matched
+  if (prompts.length === 0) {
+    const toolPrompts = {
+      'send_email': 'Send an email to share important information',
+      'create_support_ticket': 'Create a support ticket to document this issue',
+      'schedule_calendar_event': 'Schedule a meeting or event',
+      'create_crm_lead': 'Add a new lead to the CRM',
+      'place_equipment_order': 'Place an order for equipment or supplies',
+    };
+    for (const tool of tools) {
+      if (toolPrompts[tool]) {
+        prompts.push(toolPrompts[tool]);
+      }
+    }
+  }
+
+  // If still empty, use generic
   if (prompts.length === 0) {
     prompts.push('What can I help you with today?');
-  }
-
-  // Fill remaining slots with additional prompts
-  for (const tool of tools) {
-    if (toolPrompts[tool] && prompts.length < 4) {
-      prompts.push(toolPrompts[tool][1]);
-    }
-  }
-  for (const tool of tools) {
-    if (toolPrompts[tool] && prompts.length < 4) {
-      prompts.push(toolPrompts[tool][2]);
-    }
   }
 
   return prompts.slice(0, 4);
