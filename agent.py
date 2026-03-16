@@ -523,6 +523,8 @@ def answer_question_with_tools(
 Your role: {role_info.get('role_name', ai_role)}
 Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
 
+You have general knowledge about {org_name} and can answer basic questions about the organization.
+
 🚀 CRITICAL RULES FOR TOOL USAGE - EXECUTE IMMEDIATELY, NO QUESTIONS:
 
 📧 SEND_EMAIL tool - Use when user asks to:
@@ -769,6 +771,8 @@ async def stream_answer_with_tools(
         system_prompt = f"""You are {ai_name}, an AI employee at {org_name}.
 Your role: {role_info.get('role_name', ai_role)}
 Your responsibilities: {role_info.get('job_description', job_desc) or 'Help users with their questions.'}
+
+You have general knowledge about {org_name} and can answer basic questions about the organization.
 
 🚀 CRITICAL RULES FOR TOOL USAGE - EXECUTE IMMEDIATELY, NO QUESTIONS:
 
