@@ -8,21 +8,18 @@ A comprehensive guide to understanding the 3-tier multi-tenant AI agent platform
 
 ### Database Overview
 ```
-├── Organizations:          6
-├── AI Employees:          24 (4 per organization)
-├── Users:                 13 (distributed across orgs)
-├── Roles:                 14 (role types)
+├── Organizations:          3
+├── AI Employees:          9 (3 per organization)
+├── Users:                 3 (1 per organization)
+├── Roles:                 3 (Sales, Support, Operations Manager)
 ├── Tools:                 5 (executable actions)
 └── Tool Executions:       (audit trail + verification dashboard)
 ```
 
 ### Organizations Deployed
-1. **Amazon** — Sales & operations company
-2. **Stripe** — Payment processing company
+1. **Amazon** — Sales & cloud services
+2. **Stripe** — Payment processing
 3. **TechVentus** — Tech startup
-4. **InsureAll Inc** — Insurance company
-5. **CreativeWorks Agency** — Creative agency
-6. **TalentMatch Inc** — Recruiting company
 
 ---
 
@@ -65,7 +62,7 @@ The system is built on three levels of hierarchy with complete data isolation at
 
 ---
 
-## 📚 Organizations (6 Total)
+## 📚 Organizations (3 Total)
 
 Each organization is a **completely isolated tenant** with its own:
 - Knowledge base (documents & vector embeddings)
@@ -78,214 +75,113 @@ Each organization is a **completely isolated tenant** with its own:
 
 | Name | Industry | AI Employees | Users |
 |------|----------|--------------|-------|
-| Amazon | Sales & Ops | Alex (SDR), Maya (Support), David (Content), Quinn (Ops) | Ajay, Naveen, Dexter |
-| Stripe | Payment Processing | Jordan (Support), Sam (Claims), Riley (Finance), Casey (Social) | Emma, James, Michael |
-| TechVentus | Tech Startup | Quinn (Dispatch), Riley (Scheduler), Jordan (Ops), Maya (Support) | Sarah, Chris, Pat |
-| InsureAll Inc | Insurance | Sam (Claims), Alex (Underwriting), Jordan (Support), Riley (Finance) | Lisa, Tom, Robert |
-| CreativeWorks Agency | Creative Agency | Casey (Social), David (Content), Alex (Sales), Quinn (Ops) | Susan |
-| TalentMatch Inc | Recruiting | Alex (Recruiter), Maya (Onboarding), David (Sales), Casey (Content) | (Additional users) |
+| Amazon | Sales & Cloud | Alex (Sales), Maya (Support), Quinn (Operations) | Ajay |
+| Stripe | Payment Processing | Jordan (Support), Sam (Sales), Riley (Operations) | Emma |
+| TechVentus | Tech Startup | Maya (Support), Alex (Sales), Quinn (Operations) | Sarah |
 
 **Key Point:** Users in **Amazon** have completely separate conversations and data from users in **Stripe**. There is no cross-org data leakage.
 
 ---
 
-## 🤖 AI Employees (24 Total - 4 Per Organization)
+## 🤖 AI Employees (9 Total - 3 Per Organization)
 
 Each AI employee is a **virtual team member** with:
-- Unique name and personality
+- Unique name
 - Specific role (determines tool access)
 - Job description
 - Persistent conversation memory with each user
 - Semantic memory (topic-based) for intelligent context
 
-### All 24 AI Employees by Organization
+### All 9 AI Employees by Organization
 
-#### **Amazon** (4 employees)
-- **Alex (Sales Bot)** — Role: Sales Development Rep (SDR)
+#### **Amazon** (3 employees)
+- **Alex** — Role: Sales Development Rep (SDR)
   - Job: Research prospects, send personalized outreach, update CRM, schedule discovery calls
   - Tools: ✓ send_email, ✓ create_crm_lead
 
-- **Maya (Support Bot)** — Role: Customer Support Agent
-  - Job: Resolve customer issues, search help content, verify account status, create support tickets
+- **Maya** — Role: Customer Support Agent
+  - Job: Resolve customer issues, create support tickets, escalate when needed
   - Tools: ✓ create_support_ticket, ✓ send_email
 
-- **David (Content Bot)** — Role: Content Creator
-  - Job: Write blog posts, create campaign content, manage content calendar
-  - Tools: (None - read-only)
+- **Quinn** — Role: Operations Manager
+  - Job: Coordinate schedules, place equipment orders, schedule meetings
+  - Tools: ✓ place_equipment_order, ✓ schedule_calendar_event
 
-- **Quinn (Ops Bot)** — Role: Operations Coordinator
-  - Job: Coordinate deliveries, update operational records, notify vendors
-  - Tools: (None - read-only)
-
-#### **Stripe** (4 employees)
-- **Jordan (Support Bot)** — Role: Customer Support Agent
+#### **Stripe** (3 employees)
+- **Jordan** — Role: Customer Support Agent
+  - Job: Handle customer support issues across billing and technical topics
   - Tools: ✓ create_support_ticket, ✓ send_email
 
-- **Sam (Claims Bot)** — Role: Insurance Claims Processor
-  - Tools: (None - specialized for insurance, not general)
-
-- **Riley (Finance Bot)** — Role: Finance Coordinator
-  - Tools: (None - financial data handler)
-
-- **Casey (Social Bot)** — Role: Social Media Manager
-  - Tools: (None - content-only)
-
-#### **TechVentus** (4 employees)
-- **Quinn (Dispatch Bot)** — Role: Dispatch Manager
-  - Tools: (None - dispatch-specific)
-
-- **Riley (Scheduler Bot)** — Role: Customer Scheduler
-  - Tools: (None - scheduling assistant)
-
-- **Jordan (Ops Bot)** — Role: Operations Coordinator
-  - Tools: (None - operations-only)
-
-- **Maya (Support Bot)** — Role: Customer Support Agent
-  - Tools: ✓ create_support_ticket, ✓ send_email
-
-#### **InsureAll Inc** (4 employees)
-- **Sam (Claims Bot)** — Role: Insurance Claims Processor
-  - Tools: (None)
-
-- **Alex (Underwriting Bot)** — Role: Insurance Underwriter Assistant
-  - Tools: (None)
-
-- **Jordan (Support Bot)** — Role: Customer Support Agent
-  - Tools: ✓ create_support_ticket, ✓ send_email
-
-- **Riley (Finance Bot)** — Role: Finance Coordinator
-  - Tools: (None)
-
-#### **CreativeWorks Agency** (4 employees)
-- **Casey (Social Bot)** — Role: Social Media Manager
-  - Tools: (None)
-
-- **David (Content Bot)** — Role: Content Creator
-  - Tools: (None)
-
-- **Alex (Sales Bot)** — Role: Sales Development Rep (SDR)
+- **Sam** — Role: Sales Development Rep (SDR)
+  - Job: Prospect new customers, send outreach, manage leads
   - Tools: ✓ send_email, ✓ create_crm_lead
 
-- **Quinn (Ops Bot)** — Role: Operations Coordinator
-  - Tools: (None)
+- **Riley** — Role: Operations Manager
+  - Job: Schedule meetings, manage operations, place equipment orders
+  - Tools: ✓ schedule_calendar_event, ✓ place_equipment_order
 
-#### **TalentMatch Inc** (4 employees)
-- **Alex (Recruiter Bot)** — Role: Recruiter
-  - Tools: ✓ send_email
+#### **TechVentus** (3 employees)
+- **Maya** — Role: Customer Support Agent
+  - Job: Handle customer service issues and create support tickets
+  - Tools: ✓ create_support_ticket, ✓ send_email
 
-- **Maya (Onboarding Bot)** — Role: Onboarding Specialist
-  - Tools: (None)
-
-- **David (Sales Bot)** — Role: Sales Development Rep (SDR)
+- **Alex** — Role: Sales Development Rep (SDR)
+  - Job: Prospect and outreach, manage leads, schedule customer calls
   - Tools: ✓ send_email, ✓ create_crm_lead
 
-- **Casey (Content Bot)** — Role: Content Creator
-  - Tools: (None)
+- **Quinn** — Role: Operations Manager
+  - Job: Schedule meetings, coordinate operations, manage equipment
+  - Tools: ✓ schedule_calendar_event, ✓ place_equipment_order
 
 ---
 
-## 👥 Users (13 Total)
+## 👥 Users (3 Total - 1 Per Organization)
 
 Users are **actual people** who interact with AI employees. Each user:
 - Belongs to exactly ONE organization
-- Can be assigned to multiple AI employees within their org
-- Has separate conversation history with each assigned AI employee
+- Is assigned to all AI employees in their org
+- Has separate conversation history with each AI employee
 - Cannot see other users' conversations (data isolation)
 
 ### User Directory
 
 | User ID | Name | Organization | Assigned AI Employees |
 |---------|------|---------------|----------------------|
-| ajay | Ajay | Amazon | All 4 Amazon employees |
-| naveen | Naveen | Amazon | Alex (Sales), Maya (Support) |
-| dexter | Dexter | Amazon | All 4 Amazon employees |
-| emma | Emma | Stripe | Jordan (Support), Riley (Finance) |
-| james | James | Stripe | All 4 Stripe employees |
-| michael | Michael | Stripe | Sam (Claims), Casey (Social) |
-| sarah | Sarah | TechVentus | All 4 TechVentus employees |
-| chris | Chris | TechVentus | Quinn (Dispatch), Riley (Scheduler) |
-| pat | Pat | TechVentus | Jordan (Ops), Maya (Support) |
-| lisa | Lisa | InsureAll Inc | Sam (Claims), Alex (Underwriting) |
-| tom | Tom | InsureAll Inc | Jordan (Support), Riley (Finance) |
-| robert | Robert | InsureAll Inc | All 4 InsureAll employees |
-| susan | Susan | CreativeWorks Agency | All 4 Agency employees |
+| ajay | Ajay | Amazon | Alex, Maya, Quinn |
+| emma | Emma | Stripe | Jordan, Sam, Riley |
+| sarah | Sarah | TechVentus | Maya, Alex, Quinn |
 
 ---
 
-## 🎭 Roles (14 Total - Hierarchical Permission System)
+## 🎭 Roles (3 Total - Simplified Permission System)
 
 Roles are the **key to tool access control**. A role defines:
 - What the AI employee can do
 - What tools they're authorized to use
 - Their permissions and restrictions
 
-### Roles with Tool Access (5 Roles)
+### 3 Core Roles
 
 #### 1. **Sales Development Rep (SDR)** 🎯 Sales
 - **Purpose:** Prospect new customers, send outreach, manage sales pipeline
 - **Allowed Tools:**
-  - ✓ `send_email` — Send cold outreach emails
-  - ✓ `create_crm_lead` — Add prospects to CRM system
+  - ✓ `send_email` — Send outreach emails
+  - ✓ `create_crm_lead` — Add prospects to CRM
 - **Example Users:** Ajay talking to Alex (Sales Bot)
-- **Conversation Example:**
-  ```
-  User: "Send an email to john@techcompany.com about our product"
-  Alex: "I'll draft and send that for you..."
-  Tool Used: send_email
-  Result: Email sent successfully ✓
-  ```
 
 #### 2. **Customer Support Agent** 🎧 Support
 - **Purpose:** Resolve customer issues, handle support tickets
 - **Allowed Tools:**
   - ✓ `send_email` — Email customers with solutions
-  - ✓ `create_support_ticket` — File tickets for escalation
-- **Example Users:** Any user talking to Maya (Support Bot)
-- **Conversation Example:**
-  ```
-  User: "A customer can't login to their account"
-  Maya: "I'll create a support ticket for this..."
-  Tool Used: create_support_ticket
-  Result: Ticket #12345 created ✓
-  ```
+  - ✓ `create_support_ticket` — Create support tickets
+- **Example Users:** Ajay talking to Maya (Support Bot)
 
-#### 3. **Sales Manager** 📊 Sales (Full Permissions)
-- **Purpose:** Manage sales team, oversee deals, schedule calls
+#### 3. **Operations Manager** ⚙️ Operations/Content
+- **Purpose:** Manage operations, schedule meetings, order equipment
 - **Allowed Tools:**
-  - ✓ `send_email` — Email customers/team
-  - ✓ `create_crm_lead` — Add high-value leads
-  - ✓ `schedule_calendar_event` — Schedule sales meetings
-- **Highest Sales Permissions** among sales roles
-
-#### 4. **Operations Manager** ⚙️ Operations
-- **Purpose:** Manage operations, order equipment, schedule events
-- **Allowed Tools:**
+  - ✓ `schedule_calendar_event` — Schedule meetings/calls
   - ✓ `place_equipment_order` — Order equipment/supplies
-  - ✓ `schedule_calendar_event` — Schedule operational meetings
-- **Example:** Quinn (Ops Bot) coordinating deliveries
-
-#### 5. **Recruiter** 👥 HR
-- **Purpose:** Source talent, send recruitment outreach
-- **Allowed Tools:**
-  - ✓ `send_email` — Send recruitment emails only
-- **Minimal Permissions** — recruitment-focused
-- **Example:** Alex (Recruiter Bot) at TalentMatch Inc
-
-### Roles WITHOUT Tool Access (9 Roles)
-
-These roles can **read, discuss, and analyze** but cannot execute any tools:
-
-| Role | Category | Reason |
-|------|----------|--------|
-| Content Creator | Marketing | Content-only, no execution needed |
-| Operations Coordinator | Operations | Coordinator (no autonomous decisions) |
-| Insurance Claims Processor | Insurance | Highly regulated, manual review required |
-| Finance Coordinator | Finance | Financial decisions need approval |
-| Social Media Manager | Marketing | Post-only through platform, no tools |
-| Dispatch Manager | Operations | Should not autonomously dispatch |
-| Customer Scheduler | Support | Booking only, requires confirmation |
-| Insurance Underwriter Assistant | Insurance | Regulated industry, needs human approval |
-| Onboarding Specialist | HR | HR processes need manager approval |
+- **Example Users:** Ajay talking to Quinn (Ops Bot)
 
 ---
 
@@ -358,28 +254,27 @@ Requested Tool: send_email
 
 ---
 
-## 🔧 Tools (5 Available)
+## 🔧 Tools (5 Essential)
 
 All tools are **mocked** (safe for demo) but fully logged in the verification dashboard:
 
 ### 1. `send_email` 📧
 - **Description:** Send emails to contacts
-- **Allowed for Roles:** SDR, Support Agent, Sales Manager, Recruiter
+- **Allowed for Roles:** Sales Development Rep, Customer Support Agent
 - **Parameters:**
   ```json
   {
-    "to_email": "recipient@example.com",
+    "to": "recipient@example.com",
     "subject": "Your Subject Here",
     "body": "Email body content...",
     "cc": "optional@example.com"
   }
   ```
 - **Verification Dashboard:** `/api/verify/emails/{org_id}`
-- **Log Location:** `emails_sent` table
 
 ### 2. `create_crm_lead` 🎯
 - **Description:** Add leads to CRM system
-- **Allowed for Roles:** SDR, Sales Manager
+- **Allowed for Roles:** Sales Development Rep
 - **Parameters:**
   ```json
   {
@@ -391,39 +286,34 @@ All tools are **mocked** (safe for demo) but fully logged in the verification da
   }
   ```
 - **Verification Dashboard:** `/api/verify/crm-leads/{org_id}`
-- **Log Location:** `crm_leads` table
 
 ### 3. `create_support_ticket` 🎫
 - **Description:** Create support tickets for escalation
-- **Allowed for Roles:** Support Agent
+- **Allowed for Roles:** Customer Support Agent
 - **Parameters:**
   ```json
   {
     "customer_email": "customer@example.com",
     "subject": "Issue Title",
     "description": "Detailed issue description",
-    "priority": "high",
-    "category": "billing"
+    "priority": "medium"
   }
   ```
 - **Verification Dashboard:** `/api/verify/tickets/{org_id}`
-- **Log Location:** `support_tickets` table
 
 ### 4. `schedule_calendar_event` 📅
 - **Description:** Schedule calendar events (meetings, calls)
-- **Allowed for Roles:** Sales Manager, Operations Manager
+- **Allowed for Roles:** Operations Manager
 - **Parameters:**
   ```json
   {
     "title": "Sales Call with Acme Corp",
-    "description": "Discuss implementation timeline",
+    "attendee_email": "contact@acme.com",
     "start_time": "2026-03-20T10:00:00",
-    "end_time": "2026-03-20T11:00:00",
-    "attendee_email": "contact@acme.com"
+    "end_time": "2026-03-20T11:00:00"
   }
   ```
 - **Verification Dashboard:** `/api/verify/calendar/{org_id}`
-- **Log Location:** `calendar_events` table
 
 ### 5. `place_equipment_order` 📦
 - **Description:** Place equipment orders
@@ -438,7 +328,6 @@ All tools are **mocked** (safe for demo) but fully logged in the verification da
   }
   ```
 - **Verification Dashboard:** `/api/verify/equipment/{org_id}`
-- **Log Location:** `equipment_orders` table
 
 ---
 
@@ -814,26 +703,26 @@ Result:
 ✓ Visible in /api/verify/tickets/stripe_org_id
 ```
 
-### Scenario 3: Content Creator (No Tool Access)
+### Scenario 3: Operations Manager Scheduling Event
 
 ```
-Organization: CreativeWorks Agency
-User: Susan
-AI Employee: David (Content Bot)
-Role: Content Creator
+Organization: TechVentus
+User: Sarah
+AI Employee: Quinn (Operations Bot)
+Role: Operations Manager
 
-User: "Send an email to the client about the new campaign"
+User: "Schedule a meeting with our client for next Tuesday at 2pm"
 
 System checks:
-✓ Susan is in CreativeWorks Agency
-✓ Susan is assigned to David
-✓ David is a Content Creator
-✗ Content Creator has NO tool permissions
+✓ Sarah is in TechVentus org
+✓ Sarah is assigned to Quinn
+✓ Quinn is an Operations Manager
+✓ Operations Manager has permission to use schedule_calendar_event
 
 Result:
-✗ Request DENIED
-Message: "Content Creator role does not have access to send_email"
-David can still respond with: "I can draft the email for you to send..."
+✓ Meeting scheduled
+✓ Logged in calendar_events table
+✓ Visible in /api/verify/calendar/techventus_org_id
 ```
 
 ---
@@ -861,5 +750,5 @@ David can still respond with: "I can draft the email for you to send..."
 ---
 
 **Last Updated:** March 15, 2026
-**Deployment:** Supernal Persistent Agent v2.0.0
-**Architecture:** 3-Tier Multi-Tenant with RBAC
+**Deployment:** Supernal Persistent Agent v2.1.0 (Simplified)
+**Architecture:** 3-Tier Multi-Tenant with RBAC (3 orgs, 9 employees, 3 users, 3 roles, 5 tools)

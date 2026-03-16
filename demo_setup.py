@@ -1,9 +1,8 @@
 """
 RBAC-aware demo data seeder.
 
-Creates six organizations with AI employees tied to the RBAC role catalog,
-shared knowledge-base documents, organization tool registrations, and
-user-to-agent assignments.
+Creates three organizations (Amazon, Stripe, TechVentus) with 3 AI employees each
+and 1 user per organization, all tied to the RBAC role catalog.
 """
 
 import logging
@@ -165,286 +164,114 @@ COMPANIES = [
         "organization_name": "Amazon",
         "documents": [
             {
-                "filename": "amazon_sales_playbook.txt",
+                "filename": "amazon_playbook.txt",
                 "text": (
-                    "Amazon runs outbound sales with a strong emphasis on research, CRM hygiene, "
-                    "and fast meeting booking. SDRs should personalize outreach, log every lead, "
-                    "and schedule discovery calls with decision-makers."
-                ),
-            },
-            {
-                "filename": "amazon_ops_notes.txt",
-                "text": (
-                    "Operations teams coordinate schedules, deliveries, and vendor updates. "
-                    "When work changes, update the internal systems and send concise team notifications."
+                    "Amazon runs outbound sales with emphasis on research, CRM hygiene, and fast meeting booking. "
+                    "Agents should personalize outreach, log leads, handle support tickets, and schedule calls."
                 ),
             },
         ],
         "employees": [
             {
                 "key": "sales",
-                "name": "Alex (Sales Bot)",
+                "name": "Alex",
                 "role": "Sales Development Rep (SDR)",
                 "job_description": "Research prospects, send personalized outreach, update CRM, and schedule discovery calls.",
             },
             {
                 "key": "support",
-                "name": "Maya (Support Bot)",
+                "name": "Maya",
                 "role": "Customer Support Agent",
-                "job_description": "Resolve customer issues, search help content, verify account status, and create support tickets.",
-            },
-            {
-                "key": "content",
-                "name": "David (Content Bot)",
-                "role": "Content Creator",
-                "job_description": "Write blog posts, create campaign content, and manage the content calendar.",
+                "job_description": "Resolve customer issues, create support tickets, and escalate when needed.",
             },
             {
                 "key": "ops",
-                "name": "Quinn (Ops Bot)",
-                "role": "Operations Coordinator",
-                "job_description": "Coordinate deliveries, update operational records, and notify vendors.",
+                "name": "Quinn",
+                "role": "Operations Manager",
+                "job_description": "Coordinate schedules, place equipment orders, and schedule operational meetings.",
             },
         ],
         "users": [
             {"user_id": "ajay", "name": "Ajay", "email": "ajay@amazon.com"},
-            {"user_id": "naveen", "name": "Naveen", "email": "naveen@amazon.com"},
-            {"user_id": "dexter", "name": "Dexter", "email": "dexter@amazon.com"},
         ],
         "assignments": {
-            "ajay": ["sales", "ops"],
-            "naveen": ["support", "ops"],
-            "dexter": ["sales", "support", "content", "ops"],
+            "ajay": ["sales", "support", "ops"],
         },
     },
     {
         "organization_name": "Stripe",
         "documents": [
             {
-                "filename": "stripe_support_playbook.txt",
+                "filename": "stripe_playbook.txt",
                 "text": (
-                    "Stripe support handles billing, account, fraud, and API issues. Agents should "
-                    "search the knowledge base first, verify customer details, and escalate through support tickets."
+                    "Stripe support handles billing, account, and API issues. Agents should search the knowledge base, "
+                    "verify customer details, and escalate through support tickets."
                 ),
             },
         ],
         "employees": [
             {
                 "key": "support",
-                "name": "Jordan (Support Bot)",
+                "name": "Jordan",
                 "role": "Customer Support Agent",
                 "job_description": "Handle customer support issues across billing, technical, and account topics.",
             },
             {
-                "key": "claims",
-                "name": "Sam (Claims Bot)",
-                "role": "Insurance Claims Processor",
-                "job_description": "Process fraud and dispute-related claims, verify coverage, and route cases.",
+                "key": "sales",
+                "name": "Sam",
+                "role": "Sales Development Rep (SDR)",
+                "job_description": "Prospect new customers, send outreach emails, and add leads to CRM.",
             },
             {
-                "key": "finance",
-                "name": "Riley (Finance Bot)",
-                "role": "Finance Coordinator",
-                "job_description": "Reconcile transactions, generate reports, and manage invoices.",
-            },
-            {
-                "key": "social",
-                "name": "Casey (Social Bot)",
-                "role": "Social Media Manager",
-                "job_description": "Create social media content, maintain brand voice, and analyze engagement.",
+                "key": "ops",
+                "name": "Riley",
+                "role": "Operations Manager",
+                "job_description": "Manage operations, schedule meetings, and place equipment orders.",
             },
         ],
         "users": [
             {"user_id": "emma", "name": "Emma", "email": "emma@stripe.com"},
-            {"user_id": "james", "name": "James", "email": "james@stripe.com"},
         ],
         "assignments": {
-            "emma": ["support", "finance"],
-            "james": ["claims", "social", "support"],
+            "emma": ["support", "sales", "ops"],
         },
     },
     {
         "organization_name": "TechVentus",
         "documents": [
             {
-                "filename": "techventus_dispatch_guide.txt",
+                "filename": "techventus_guide.txt",
                 "text": (
-                    "TechVentus runs field operations for HVAC and plumbing jobs. Dispatchers coordinate technicians, "
-                    "schedulers manage appointment changes, and operations tracks inventory and vendor updates."
+                    "TechVentus runs field operations for tech startups. Agents coordinate customer support, "
+                    "sales outreach, and operational scheduling."
                 ),
             },
         ],
         "employees": [
             {
-                "key": "dispatch",
-                "name": "Quinn (Dispatch Bot)",
-                "role": "Dispatch Manager",
-                "job_description": "Dispatch technicians, optimize routes, and manage job schedules.",
+                "key": "support",
+                "name": "Maya",
+                "role": "Customer Support Agent",
+                "job_description": "Handle customer service issues and create support tickets for escalations.",
             },
             {
-                "key": "scheduler",
-                "name": "Riley (Scheduler Bot)",
-                "role": "Customer Scheduler",
-                "job_description": "Answer scheduling questions, book appointments, and handle reschedules.",
+                "key": "sales",
+                "name": "Alex",
+                "role": "Sales Development Rep (SDR)",
+                "job_description": "Prospect and outreach, manage leads, and schedule customer calls.",
             },
             {
                 "key": "ops",
-                "name": "Jordan (Ops Bot)",
-                "role": "Operations Coordinator",
-                "job_description": "Manage inventory, coordinate vendors, and update operational records.",
-            },
-            {
-                "key": "support",
-                "name": "Maya (Support Bot)",
-                "role": "Customer Support Agent",
-                "job_description": "Handle service issues and create support tickets for escalations.",
+                "name": "Quinn",
+                "role": "Operations Manager",
+                "job_description": "Schedule meetings, coordinate operations, and manage equipment.",
             },
         ],
         "users": [
-            {"user_id": "michael", "name": "Michael", "email": "michael@techventus.com"},
             {"user_id": "sarah", "name": "Sarah", "email": "sarah@techventus.com"},
         ],
         "assignments": {
-            "michael": ["dispatch", "ops"],
-            "sarah": ["scheduler", "support"],
-        },
-    },
-    {
-        "organization_name": "InsureAll Inc",
-        "documents": [
-            {
-                "filename": "insurance_claims_handbook.txt",
-                "text": (
-                    "Insurance claims should be verified against policy coverage, checked for fraud indicators, "
-                    "and routed quickly to adjusters when human review is required."
-                ),
-            },
-        ],
-        "employees": [
-            {
-                "key": "claims",
-                "name": "Sam (Claims Bot)",
-                "role": "Insurance Claims Processor",
-                "job_description": "Process claims, verify coverage, detect fraud, and route cases.",
-            },
-            {
-                "key": "underwriter",
-                "name": "Alex (Underwriting Bot)",
-                "role": "Insurance Underwriter Assistant",
-                "job_description": "Assess risk, analyze coverage, create quotes, and flag edge cases.",
-            },
-            {
-                "key": "support",
-                "name": "Jordan (Support Bot)",
-                "role": "Customer Support Agent",
-                "job_description": "Handle policy questions, account updates, and support escalations.",
-            },
-            {
-                "key": "finance",
-                "name": "Riley (Finance Bot)",
-                "role": "Finance Coordinator",
-                "job_description": "Manage premium records, reconcile payments, and generate reports.",
-            },
-        ],
-        "users": [
-            {"user_id": "chris", "name": "Chris", "email": "chris@insureall.com"},
-            {"user_id": "pat", "name": "Pat", "email": "pat@insureall.com"},
-        ],
-        "assignments": {
-            "chris": ["claims", "underwriter"],
-            "pat": ["support", "finance"],
-        },
-    },
-    {
-        "organization_name": "CreativeWorks Agency",
-        "documents": [
-            {
-                "filename": "agency_content_guide.txt",
-                "text": (
-                    "CreativeWorks produces branded content, ad copy, and social campaigns. "
-                    "Social managers publish and analyze posts while content creators build the written assets."
-                ),
-            },
-        ],
-        "employees": [
-            {
-                "key": "social",
-                "name": "Casey (Social Bot)",
-                "role": "Social Media Manager",
-                "job_description": "Create, schedule, and analyze social posts in the agency's brand voice.",
-            },
-            {
-                "key": "content",
-                "name": "David (Content Bot)",
-                "role": "Content Creator",
-                "job_description": "Write blog posts, create ad copy, and manage the content calendar.",
-            },
-            {
-                "key": "sales",
-                "name": "Alex (Sales Bot)",
-                "role": "Sales Development Rep (SDR)",
-                "job_description": "Prospect new clients, send outreach, and schedule intro calls.",
-            },
-            {
-                "key": "ops",
-                "name": "Quinn (Ops Bot)",
-                "role": "Operations Coordinator",
-                "job_description": "Manage project schedules, deliverables, and vendor communication.",
-            },
-        ],
-        "users": [
-            {"user_id": "lisa", "name": "Lisa", "email": "lisa@creativeworks.com"},
-            {"user_id": "tom", "name": "Tom", "email": "tom@creativeworks.com"},
-        ],
-        "assignments": {
-            "lisa": ["social", "content"],
-            "tom": ["sales", "ops"],
-        },
-    },
-    {
-        "organization_name": "TalentMatch Inc",
-        "documents": [
-            {
-                "filename": "recruiting_workflow.txt",
-                "text": (
-                    "Recruiters screen applicants, source candidates, and schedule interviews. "
-                    "Onboarding specialists collect documents, schedule training, and provision access for new hires."
-                ),
-            },
-        ],
-        "employees": [
-            {
-                "key": "recruiter",
-                "name": "Alex (Recruiter Bot)",
-                "role": "Recruiter",
-                "job_description": "Screen candidates, schedule interviews, source talent, and track the pipeline.",
-            },
-            {
-                "key": "onboarding",
-                "name": "Maya (Onboarding Bot)",
-                "role": "Onboarding Specialist",
-                "job_description": "Collect documents, schedule training, provision access, and manage onboarding plans.",
-            },
-            {
-                "key": "sales",
-                "name": "David (Sales Bot)",
-                "role": "Sales Development Rep (SDR)",
-                "job_description": "Prospect clients, send outreach, and book discovery calls.",
-            },
-            {
-                "key": "content",
-                "name": "Casey (Content Bot)",
-                "role": "Content Creator",
-                "job_description": "Write job descriptions, recruiting copy, and employer-brand content.",
-            },
-        ],
-        "users": [
-            {"user_id": "robert", "name": "Robert", "email": "robert@talentmatch.com"},
-            {"user_id": "susan", "name": "Susan", "email": "susan@talentmatch.com"},
-        ],
-        "assignments": {
-            "robert": ["recruiter", "onboarding"],
-            "susan": ["sales", "content"],
+            "sarah": ["support", "sales", "ops"],
         },
     },
 ]
