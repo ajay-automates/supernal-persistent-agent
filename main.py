@@ -41,9 +41,9 @@ from db import (
     log_api_call, log_error, get_org_metrics,
     # Stats & validation
     get_stats, validate_hierarchy,
-    # Tool Verification
-    get_emails_sent, get_crm_leads, get_support_tickets,
-    get_calendar_events, get_equipment_orders
+    # Tool Verification (formatted versions)
+    get_emails_sent_formatted, get_crm_leads_formatted, get_support_tickets_formatted,
+    get_calendar_events_formatted, get_equipment_orders_formatted
 )
 
 app = FastAPI(
@@ -572,7 +572,7 @@ async def get_verified_emails(organization_id: str):
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     try:
-        emails = get_emails_sent(organization_id)
+        emails = get_emails_sent_formatted(organization_id)
         return {
             "count": len(emails),
             "emails": emails
@@ -588,7 +588,7 @@ async def get_verified_crm_leads(organization_id: str):
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     try:
-        leads = get_crm_leads(organization_id)
+        leads = get_crm_leads_formatted(organization_id)
         return {
             "count": len(leads),
             "leads": leads
@@ -604,7 +604,7 @@ async def get_verified_tickets(organization_id: str):
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     try:
-        tickets = get_support_tickets(organization_id)
+        tickets = get_support_tickets_formatted(organization_id)
         return {
             "count": len(tickets),
             "tickets": tickets
@@ -620,7 +620,7 @@ async def get_verified_calendar(organization_id: str):
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     try:
-        events = get_calendar_events(organization_id)
+        events = get_calendar_events_formatted(organization_id)
         return {
             "count": len(events),
             "events": events
@@ -636,7 +636,7 @@ async def get_verified_equipment(organization_id: str):
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     try:
-        orders = get_equipment_orders(organization_id)
+        orders = get_equipment_orders_formatted(organization_id)
         return {
             "count": len(orders),
             "orders": orders

@@ -1142,3 +1142,130 @@ def get_equipment_orders(organization_id: str) -> List[Dict]:
     except Exception as e:
         print(f"Error getting equipment orders: {e}")
         return []
+
+
+# ─── Professional Data Formatting ──────────────────────────────────────────────
+
+def _format_timestamp(ts: str) -> str:
+    """Format ISO timestamp to readable datetime."""
+    if not ts:
+        return "Not available"
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        return dt.strftime("%m/%d/%Y, %I:%M %p")
+    except:
+        return "Not available"
+
+
+def _format_currency(amount: float) -> str:
+    """Format amount as currency with fallback for null."""
+    if amount is None or amount == 0:
+        return "$0.00"
+    try:
+        return f"${float(amount):,.2f}"
+    except:
+        return "$0.00"
+
+
+def _get_friendly_default(value, field_type: str = "text"):
+    """Return friendly default for missing/null values based on field type."""
+    if value is not None and value != "":
+        return value
+    defaults = {
+        "text": "Not provided",
+        "email": "Not provided",
+        "status": "Pending",
+        "priority": "Normal",
+        "phone": "Not provided",
+        "date": "Not scheduled",
+    }
+    return defaults.get(field_type, "Not provided")
+
+
+def get_emails_sent_formatted(organization_id: str) -> List[Dict]:
+    """Get emails with professional formatting and no undefined values."""
+    emails = get_emails_sent(organization_id)
+    return [
+        {
+            "id": e.get("id", ""),
+            "to": _get_friendly_default(e.get("to_email"), "email"),
+            "subject": _get_friendly_default(e.get("subject"), "text"),
+            "body_preview": (e.get("body") or "")[:100] + ("..." if len(e.get("body") or "") > 100 else ""),
+            "sent_at": _format_timestamp(e.get("sent_at")),
+            "timestamp": e.get("sent_at", ""),
+        }
+        for e in emails
+    ]
+
+
+def get_crm_leads_formatted(organization_id: str) -> List[Dict]:
+    """Get CRM leads with professional formatting."""
+    leads = get_crm_leads(organization_id)
+    return [
+        {
+            "id": l.get("id", ""),
+            "company": _get_friendly_default(l.get("company_name"), "text"),
+            "contact": _get_friendly_default(l.get("contact_name"), "text"),
+            "email": _get_friendly_default(l.get("email"), "email"),
+            "phone": _get_friendly_default(l.get("phone"), "phone"),
+            "status": _get_friendly_default(l.get("status"), "status"),
+            "created_at": _format_timestamp(l.get("created_at")),
+            "timestamp": l.get("created_at", ""),
+        }
+        for l in leads
+    ]
+
+
+def get_support_tickets_formatted(organization_id: str) -> List[Dict]:
+    """Get support tickets with professional formatting."""
+    tickets = get_support_tickets(organization_id)
+    return [
+        {
+            "id": t.get("id", ""),
+            "ticket_id": _get_friendly_default(t.get("ticket_id"), "text"),
+            "customer": _get_friendly_default(t.get("customer_email"), "email"),
+            "subject": _get_friendly_default(t.get("subject"), "text"),
+            "description": (t.get("description") or "")[:80] + ("..." if len(t.get("description") or "") > 80 else ""),
+            "priority": _get_friendly_default(t.get("priority"), "priority"),
+            "status": _get_friendly_default(t.get("status"), "status"),
+            "created_at": _format_timestamp(t.get("created_at")),
+            "timestamp": t.get("created_at", ""),
+        }
+        for t in tickets
+    ]
+
+
+def get_calendar_events_formatted(organization_id: str) -> List[Dict]:
+    """Get calendar events with professional formatting."""
+    events = get_calendar_events(organization_id)
+    return [
+        {
+            "id": e.get("id", ""),
+            "title": _get_friendly_default(e.get("title"), "text"),
+            "attendee": _get_friendly_default(e.get("attendee_email"), "email"),
+            "start_time": _format_timestamp(e.get("start_time")) if e.get("start_time") else _get_friendly_default(None, "date"),
+            "duration": "1 hour",
+            "created_at": _format_timestamp(e.get("created_at")),
+            "timestamp": e.get("created_at", ""),
+        }
+        for e in events
+    ]
+
+
+def get_equipment_orders_formatted(organization_id: str) -> List[Dict]:
+    """Get equipment orders with professional formatting."""
+    orders = get_equipment_orders(organization_id)
+    return [
+        {
+            "id": o.get("id", ""),
+            "item": _get_friendly_default(o.get("item_name"), "text"),
+            "quantity": o.get("quantity") or 1,
+            "cost": _format_currency(o.get("cost_usd")),
+            "delivery_date": _get_friendly_default(o.get("delivery_date"), "date"),
+            "status": _get_friendly_default(o.get("status"), "status"),
+            "created_at": _format_timestamp(o.get("created_at")),
+            "timestamp": o.get("created_at", ""),
+        }
+        for o in orders
+    ]
