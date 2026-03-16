@@ -47,6 +47,22 @@ else:
 # RETRIEVAL
 # ============================================================
 
+@traceable(name="retrieve_organization_context", run_type="retriever")
+def _retrieve_organization_docs(organization_id: str, query_embedding: List[float], k: int = 4) -> List[dict]:
+    """Retrieve docs from organization knowledge base."""
+    return search_organization_chunks(organization_id, query_embedding, k=k)
+
+
+@traceable(name="generate_embeddings", run_type="retriever")
+def _generate_query_embedding(query: str) -> List[float]:
+    """Generate embedding for a query."""
+    embedding_response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=query
+    )
+    return embedding_response.data[0].embedding
+
+
 @traceable(name="retrieve_context", run_type="retriever")
 def retrieve_context(
     organization_id: str, query: str, k: int = 4
@@ -56,13 +72,8 @@ def retrieve_context(
     Returns (context_string, sources_list).
     """
     try:
-        embedding_response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=query
-        )
-        query_embedding = embedding_response.data[0].embedding
-
-        results = search_organization_chunks(organization_id, query_embedding, k=k)
+        query_embedding = _generate_query_embedding(query)
+        results = _retrieve_organization_docs(organization_id, query_embedding, k=k)
 
         if not results:
             return "No relevant documents found in the organization knowledge base.", []
@@ -138,6 +149,7 @@ def _embed_turn_background(
         return {"status": "error", "error": str(e)}
 
 
+@traceable(name="get_semantic_memory_context", run_type="retriever")
 def get_semantic_memory_context(
     organization_id: str,
     ai_employee_id: str,

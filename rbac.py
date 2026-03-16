@@ -8,6 +8,17 @@ This layer enforces two things before a tool can run:
 
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+import os
+
+# Optional LangSmith tracing
+LANGSMITH_API_KEY = os.environ.get("LANGSMITH_API_KEY")
+if LANGSMITH_API_KEY:
+    from langsmith import traceable
+else:
+    def traceable(name=None, run_type=None):
+        def decorator(func):
+            return func
+        return decorator
 
 
 class RoleBasedAccessControl:
@@ -83,6 +94,7 @@ class RoleBasedAccessControl:
             print(f"Error getting allowed tool details: {e}")
             return []
 
+    @traceable(name="can_user_access_ai_employee", run_type="chain")
     def can_user_access_ai_employee(
         self, user_id: str, ai_employee_id: str, organization_id: str
     ) -> Tuple[bool, Optional[str]]:
@@ -135,6 +147,7 @@ class RoleBasedAccessControl:
         except Exception as e:
             print(f"Error logging access attempt: {e}")
 
+    @traceable(name="validate_tool_execution", run_type="chain")
     def validate_tool_execution(
         self, user_id: str, ai_employee_id: str, tool_name: str, organization_id: str
     ) -> Tuple[bool, Optional[str]]:
@@ -175,6 +188,7 @@ class RoleBasedAccessControl:
         )
         return True, None
 
+    @traceable(name="get_agent_info", run_type="chain")
     def get_agent_info(self, ai_employee_id: str, organization_id: str) -> Optional[Dict]:
         """Return AI employee info enriched with RBAC role metadata."""
         try:

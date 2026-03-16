@@ -13,9 +13,20 @@ import uuid
 import time
 import random
 import logging
+import os
 from datetime import datetime, timedelta
 
 logger = logging.getLogger("tools")
+
+# Optional LangSmith tracing
+LANGSMITH_API_KEY = os.environ.get("LANGSMITH_API_KEY")
+if LANGSMITH_API_KEY:
+    from langsmith import traceable
+else:
+    def traceable(name=None, run_type=None):
+        def decorator(func):
+            return func
+        return decorator
 
 
 def _get_db_module():
@@ -98,6 +109,7 @@ def _require_verification_log(logged: bool, record_type: str):
 # 5 ESSENTIAL TOOLS
 # ══════════════════════════════════════════════════════════════
 
+@traceable(name="send_email_tool", run_type="tool")
 def send_email_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Send an email.
@@ -143,6 +155,7 @@ def send_email_tool(params: dict, organization_id: str = None, ai_employee_id: s
     return result
 
 
+@traceable(name="create_crm_lead_tool", run_type="tool")
 def create_crm_lead_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Add a lead to CRM.
@@ -189,6 +202,7 @@ def create_crm_lead_tool(params: dict, organization_id: str = None, ai_employee_
     return result
 
 
+@traceable(name="create_support_ticket_tool", run_type="tool")
 def create_support_ticket_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Create a support ticket.
@@ -238,6 +252,7 @@ def create_support_ticket_tool(params: dict, organization_id: str = None, ai_emp
     return result
 
 
+@traceable(name="schedule_calendar_event_tool", run_type="tool")
 def schedule_calendar_event_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Schedule a calendar event/meeting.
@@ -288,6 +303,7 @@ def schedule_calendar_event_tool(params: dict, organization_id: str = None, ai_e
     return result
 
 
+@traceable(name="place_equipment_order_tool", run_type="tool")
 def place_equipment_order_tool(params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Place an equipment order.
@@ -352,6 +368,7 @@ TOOL_REGISTRY = {
 }
 
 
+@traceable(name="route_tool_call", run_type="tool")
 def route_tool_call(tool_name: str, params: dict, organization_id: str = None, ai_employee_id: str = None, user_id: str = None) -> dict:
     """
     Route a tool call by name. Falls back to a stub for unknowns.
