@@ -52,6 +52,39 @@ def _now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
+def _parse_delivery_date(date_input: str) -> str:
+    """Convert natural language or various date formats to YYYY-MM-DD format."""
+    if not date_input or not isinstance(date_input, str):
+        return (datetime.utcnow() + timedelta(days=5)).isoformat()[:10]
+
+    date_str = date_input.lower().strip()
+
+    # Check if already in YYYY-MM-DD format
+    try:
+        if len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+            datetime.strptime(date_str, "%Y-%m-%d")
+            return date_str
+    except:
+        pass
+
+    # Parse natural language dates
+    today = datetime.utcnow()
+
+    if "tomorrow" in date_str:
+        return (today + timedelta(days=1)).isoformat()[:10]
+    elif "next week" in date_str:
+        return (today + timedelta(days=7)).isoformat()[:10]
+    elif "next month" in date_str:
+        return (today + timedelta(days=30)).isoformat()[:10]
+    elif "2 weeks" in date_str or "two weeks" in date_str:
+        return (today + timedelta(days=14)).isoformat()[:10]
+    elif "1 week" in date_str or "one week" in date_str or "a week" in date_str:
+        return (today + timedelta(days=7)).isoformat()[:10]
+    else:
+        # Default: 5 days from now
+        return (today + timedelta(days=5)).isoformat()[:10]
+
+
 def _require_verification_log(logged: bool, record_type: str):
     """Fail if verification record was not persisted."""
     if not logged:
@@ -80,11 +113,11 @@ def send_email_tool(params: dict, organization_id: str = None, ai_employee_id: s
     email_id = f"MSG-{_short_id()}"
 
     # Log to verification table
-    if organization_id:
+    if organization_id and ai_employee_id:
         db = _get_db_module()
         if db.get("log_email_sent"):
             status = "sent"
-            logged = db["log_email_sent"](organization_id, to, subject, body, email_id, status)
+            logged = db["log_email_sent"](organization_id, ai_employee_id, to, subject, body, email_id, status)
             _require_verification_log(logged, "Email")
 
     result = {
@@ -126,10 +159,10 @@ def create_crm_lead_tool(params: dict, organization_id: str = None, ai_employee_
     lead_id = f"LD-{_short_id()}"
 
     # Log to verification table
-    if organization_id:
+    if organization_id and ai_employee_id:
         db = _get_db_module()
         if db.get("log_crm_lead"):
-            logged = db["log_crm_lead"](organization_id, lead_id, company, contact, email, phone, status)
+            logged = db["log_crm_lead"](organization_id, ai_employee_id, lead_id, company, contact, email, phone, status)
             _require_verification_log(logged, "CRM lead")
 
     result = {
@@ -173,11 +206,11 @@ def create_support_ticket_tool(params: dict, organization_id: str = None, ai_emp
     SLA_MAP = {"critical": "30 min", "high": "2 hrs", "medium": "8 hrs", "low": "24 hrs"}
 
     # Log to verification table
-    if organization_id:
+    if organization_id and ai_employee_id:
         db = _get_db_module()
         if db.get("log_support_ticket"):
             logged = db["log_support_ticket"](
-                organization_id, ticket_id, customer_email, subject, description, priority, "open"
+                organization_id, ai_employee_id, ticket_id, customer_email, subject, description, priority, "open"
             )
             _require_verification_log(logged, "Support ticket")
 
@@ -222,11 +255,11 @@ def schedule_calendar_event_tool(params: dict, organization_id: str = None, ai_e
     zoom_id = _short_id()
 
     # Log to verification table
-    if organization_id:
+    if organization_id and ai_employee_id:
         db = _get_db_module()
         if db.get("log_calendar_event"):
             logged = db["log_calendar_event"](
-                organization_id, event_id, attendee_email, title, start, 60, f"https://zoom.us/j/{zoom_id}"
+                organization_id, ai_employee_id, event_id, attendee_email, title, start, 60, f"https://zoom.us/j/{zoom_id}"
             )
             _require_verification_log(logged, "Calendar event")
 
@@ -266,17 +299,17 @@ def place_equipment_order_tool(params: dict, organization_id: str = None, ai_emp
     item_name = params.get("item_name", "Equipment")
     quantity = params.get("quantity", 1)
     cost_usd = params.get("cost_usd", 100.0)
-    delivery_date = params.get("delivery_date", (datetime.utcnow() + timedelta(days=5)).isoformat()[:10])
+    delivery_date = _parse_delivery_date(params.get("delivery_date"))
     order_id = f"ORD-{_short_id()}"
 
     total_cost = float(cost_usd) * int(quantity)
 
     # Log to verification table
-    if organization_id:
+    if organization_id and ai_employee_id:
         db = _get_db_module()
         if db.get("log_equipment_order"):
             logged = db["log_equipment_order"](
-                organization_id, order_id, item_name, quantity, cost_usd, total_cost,
+                organization_id, ai_employee_id, order_id, item_name, quantity, cost_usd, total_cost,
                 "Agent", delivery_date, "ordered"
             )
             _require_verification_log(logged, "Equipment order")

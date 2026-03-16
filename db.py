@@ -925,6 +925,7 @@ def get_org_metrics(organization_id: str) -> Dict:
 
 def log_email_sent(
     organization_id: str,
+    ai_employee_id: str,
     recipient: str,
     subject: str,
     body: str,
@@ -934,23 +935,25 @@ def log_email_sent(
     """Log an email sent via tools."""
     try:
         from datetime import datetime
-        supabase.table("mock_emails_sent").insert({
+        import traceback
+        supabase.table("emails_sent").insert({
             "organization_id": organization_id,
-            "email_id": email_id,
-            "recipient": recipient,
+            "ai_employee_id": ai_employee_id,
+            "to_email": recipient,
             "subject": subject,
             "body": body,
-            "status": status,
             "sent_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
     except Exception as e:
-        print(f"Error logging email: {e}")
+        print(f"ERROR logging email: {type(e).__name__}: {e}")
+        traceback.print_exc()
         return False
 
 
 def log_crm_lead(
     organization_id: str,
+    ai_employee_id: str,
     lead_id: str,
     company: str,
     contact_name: str,
@@ -961,14 +964,14 @@ def log_crm_lead(
     """Log a CRM lead added via tools."""
     try:
         from datetime import datetime
-        supabase.table("mock_crm_leads").insert({
+        supabase.table("crm_leads").insert({
             "organization_id": organization_id,
-            "lead_id": lead_id,
-            "company": company,
+            "ai_employee_id": ai_employee_id,
+            "company_name": company,
             "contact_name": contact_name,
             "email": email,
             "phone": phone,
-            "stage": stage,
+            "status": stage,
             "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
@@ -979,6 +982,7 @@ def log_crm_lead(
 
 def log_support_ticket(
     organization_id: str,
+    ai_employee_id: str,
     ticket_id: str,
     customer_email: str,
     issue_type: str,
@@ -989,15 +993,15 @@ def log_support_ticket(
     """Log a support ticket created via tools."""
     try:
         from datetime import datetime
-        supabase.table("mock_support_tickets").insert({
+        supabase.table("support_tickets").insert({
             "organization_id": organization_id,
+            "ai_employee_id": ai_employee_id,
             "ticket_id": ticket_id,
             "customer_email": customer_email,
-            "issue_type": issue_type,
+            "subject": issue_type,
             "description": description,
             "priority": priority,
             "status": status,
-            "assigned_to": "support_team",
             "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
@@ -1008,6 +1012,7 @@ def log_support_ticket(
 
 def log_calendar_event(
     organization_id: str,
+    ai_employee_id: str,
     event_id: str,
     attendee_email: str,
     title: str,
@@ -1018,15 +1023,13 @@ def log_calendar_event(
     """Log a calendar event scheduled via tools."""
     try:
         from datetime import datetime
-        supabase.table("mock_calendar_events").insert({
+        supabase.table("calendar_events").insert({
             "organization_id": organization_id,
-            "event_id": event_id,
-            "attendee_email": attendee_email,
+            "ai_employee_id": ai_employee_id,
             "title": title,
-            "date_time": date_time,
-            "duration_minutes": duration_minutes,
-            "zoom_link": zoom_link,
-            "status": "scheduled",
+            "attendee_email": attendee_email,
+            "start_time": date_time,
+            "end_time": date_time,  # simplified for now
             "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
@@ -1037,6 +1040,7 @@ def log_calendar_event(
 
 def log_equipment_order(
     organization_id: str,
+    ai_employee_id: str,
     order_id: str,
     equipment: str,
     quantity: int,
@@ -1049,30 +1053,31 @@ def log_equipment_order(
     """Log an equipment order placed via tools."""
     try:
         from datetime import datetime
+        import traceback
         row = {
             "organization_id": organization_id,
-            "order_id": order_id,
-            "equipment": equipment,
-            "quantity": quantity,
-            "unit_price": unit_price,
-            "total_cost": total_cost,
-            "employee_name": employee_name,
+            "ai_employee_id": ai_employee_id,
+            "item_name": equipment,
+            "quantity": int(quantity),
+            "cost_usd": float(unit_price),
             "status": status,
             "created_at": datetime.utcnow().isoformat(),
         }
         if estimated_delivery:
-            row["estimated_delivery"] = estimated_delivery
-        supabase.table("mock_equipment_orders").insert(row).execute()
+            row["delivery_date"] = estimated_delivery
+        print(f"DEBUG: Inserting equipment order: {row}")
+        supabase.table("equipment_orders").insert(row).execute()
         return True
     except Exception as e:
-        print(f"Error logging equipment order: {e}")
+        print(f"ERROR logging equipment order: {type(e).__name__}: {e}")
+        traceback.print_exc()
         return False
 
 
 def get_emails_sent(organization_id: str) -> List[Dict]:
     """Get all emails sent via tools for an organization."""
     try:
-        resp = supabase.table("mock_emails_sent")\
+        resp = supabase.table("emails_sent")\
             .select("*")\
             .eq("organization_id", organization_id)\
             .order("sent_at", desc=True)\
@@ -1086,7 +1091,7 @@ def get_emails_sent(organization_id: str) -> List[Dict]:
 def get_crm_leads(organization_id: str) -> List[Dict]:
     """Get all CRM leads added via tools for an organization."""
     try:
-        resp = supabase.table("mock_crm_leads")\
+        resp = supabase.table("crm_leads")\
             .select("*")\
             .eq("organization_id", organization_id)\
             .order("created_at", desc=True)\
@@ -1100,7 +1105,7 @@ def get_crm_leads(organization_id: str) -> List[Dict]:
 def get_support_tickets(organization_id: str) -> List[Dict]:
     """Get all support tickets created via tools for an organization."""
     try:
-        resp = supabase.table("mock_support_tickets")\
+        resp = supabase.table("support_tickets")\
             .select("*")\
             .eq("organization_id", organization_id)\
             .order("created_at", desc=True)\
@@ -1114,7 +1119,7 @@ def get_support_tickets(organization_id: str) -> List[Dict]:
 def get_calendar_events(organization_id: str) -> List[Dict]:
     """Get all calendar events scheduled via tools for an organization."""
     try:
-        resp = supabase.table("mock_calendar_events")\
+        resp = supabase.table("calendar_events")\
             .select("*")\
             .eq("organization_id", organization_id)\
             .order("created_at", desc=True)\
@@ -1128,7 +1133,7 @@ def get_calendar_events(organization_id: str) -> List[Dict]:
 def get_equipment_orders(organization_id: str) -> List[Dict]:
     """Get all equipment orders placed via tools for an organization."""
     try:
-        resp = supabase.table("mock_equipment_orders")\
+        resp = supabase.table("equipment_orders")\
             .select("*")\
             .eq("organization_id", organization_id)\
             .order("created_at", desc=True)\
