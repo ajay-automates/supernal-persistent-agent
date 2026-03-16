@@ -933,6 +933,7 @@ def log_email_sent(
 ) -> bool:
     """Log an email sent via tools."""
     try:
+        from datetime import datetime
         supabase.table("mock_emails_sent").insert({
             "organization_id": organization_id,
             "email_id": email_id,
@@ -940,6 +941,7 @@ def log_email_sent(
             "subject": subject,
             "body": body,
             "status": status,
+            "sent_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
     except Exception as e:
@@ -958,6 +960,7 @@ def log_crm_lead(
 ) -> bool:
     """Log a CRM lead added via tools."""
     try:
+        from datetime import datetime
         supabase.table("mock_crm_leads").insert({
             "organization_id": organization_id,
             "lead_id": lead_id,
@@ -966,6 +969,7 @@ def log_crm_lead(
             "email": email,
             "phone": phone,
             "stage": stage,
+            "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
     except Exception as e:
@@ -984,6 +988,7 @@ def log_support_ticket(
 ) -> bool:
     """Log a support ticket created via tools."""
     try:
+        from datetime import datetime
         supabase.table("mock_support_tickets").insert({
             "organization_id": organization_id,
             "ticket_id": ticket_id,
@@ -993,6 +998,7 @@ def log_support_ticket(
             "priority": priority,
             "status": status,
             "assigned_to": "support_team",
+            "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
     except Exception as e:
@@ -1011,6 +1017,7 @@ def log_calendar_event(
 ) -> bool:
     """Log a calendar event scheduled via tools."""
     try:
+        from datetime import datetime
         supabase.table("mock_calendar_events").insert({
             "organization_id": organization_id,
             "event_id": event_id,
@@ -1020,6 +1027,7 @@ def log_calendar_event(
             "duration_minutes": duration_minutes,
             "zoom_link": zoom_link,
             "status": "scheduled",
+            "created_at": datetime.utcnow().isoformat(),
         }).execute()
         return True
     except Exception as e:
@@ -1040,6 +1048,7 @@ def log_equipment_order(
 ) -> bool:
     """Log an equipment order placed via tools."""
     try:
+        from datetime import datetime
         row = {
             "organization_id": organization_id,
             "order_id": order_id,
@@ -1049,6 +1058,7 @@ def log_equipment_order(
             "total_cost": total_cost,
             "employee_name": employee_name,
             "status": status,
+            "created_at": datetime.utcnow().isoformat(),
         }
         if estimated_delivery:
             row["estimated_delivery"] = estimated_delivery
