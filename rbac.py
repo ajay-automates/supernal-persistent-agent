@@ -204,7 +204,7 @@ class RoleBasedAccessControl:
         try:
             assignments = self.db.table("user_ai_employee_assignments").select(
                 "ai_employee_id"
-            ).eq("organization_id", organization_id).eq("user_id", user_id).execute()
+            ).eq("user_id", user_id).execute()
             agent_ids = [row["ai_employee_id"] for row in (assignments.data or [])]
 
             if not agent_ids:
